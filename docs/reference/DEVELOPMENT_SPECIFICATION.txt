@@ -1,0 +1,1083 @@
+# Godot Mobile Screw Puzzle Development Specification
+
+Game research and production blueprint for Akhilesh Mahto
+Project Screwcraft is an internal working name
+Version 1.0   8 October 2026
+
+## 1 Product decision and scope
+
+Build an original portrait mobile puzzle in which the player removes exposed colored screws from layered craft pieces, sorts them into matching boxes, and gradually reveals the object underneath. Use a deterministic 2D rule system with illustrated depth, polished motion, sound, and haptics. Start with 30 authored levels and a small workshop collection. Expand content only after the core is understandable, reliable, and enjoyable on an Android phone.
+
+This specification gives the lead agent, Godot developer, game designer, level designer, UI designer, technical artist, audio designer, and QA specialist a shared implementation target. Research findings are identified as advertised features, inspected visual observations, or documented competitor rules. Sections describing Project Screwcraft are original design decisions. Numeric tuning values are starting hypotheses to test, not measured competitor values or promises of retention.
+
+The central product promise is a satisfying chain of decisions: choose a useful screw, make room, complete a box, expose another layer, and finish a recognizable creation. Every campaign level must have a verified solution under the normal rules without purchases, advertising, or consumables. The player can make mistakes, inspect the puzzle, undo, and learn.
+
+### 1.1 Fixed decisions for the first production build
+
+| Area | Decision |
+| --- | --- |
+| Platform | Android first; touch input; phone portrait; tablet layouts supported through responsive sizing |
+| Engine | Godot 4.7.2 Standard with typed GDScript; pin matching export templates and dependency versions |
+| Rendering | 2D scenes with shaded sprites and cosmetic depth; begin with Compatibility renderer |
+| Core mode | Untimed single player campaign that works offline |
+| Sorting | Two active boxes, each holding three screws of one color |
+| Planning | Two upcoming box previews; tap to inspect the entire remaining queue |
+| Temporary storage | Five buffer spaces; matching screws may bypass a full buffer |
+| Access | A screw becomes available when its explicitly defined blocking plates have cleared |
+| Assistance | Free undo, free board inspection, and an honest solver-backed hint when a solution is available |
+| Progression | Thirty levels, six five-level album groups, one first-clear reward per level |
+| Business systems | Ads, purchases, accounts, cloud saves, and live events remain disabled in the first playable build |
+
+The official Godot archive lists 4.7.2 as stable when this document was prepared. The engine documentation positions Compatibility for less demanding rendering and broader hardware support. Pinning this baseline is a production recommendation; benchmark it on the selected devices before declaring support. [T1, T2]
+
+### 1.2 What the first build must demonstrate
+
+The first meaningful playable should let someone complete five small puzzles on a phone, understand why a screw is blocked, recover from a mistake, close the app mid-puzzle, and resume correctly. It must already show the intended tactile interaction. An attractive menu connected to unreliable rules is not an acceptable vertical slice.
+
+The 30-level build adds onboarding, a coherent difficulty curve, original art, basic settings, an album, and performance verification. Full 3D object rotation, swinging physical planks, procedurally generated endless content, multiplayer, city construction, elaborate events, and monetization integrations are later decisions. None is a prerequisite for validating the core game.
+
+## 2 Reference game analysis
+
+### 2.1 The linked game
+
+The supplied package identifies Woodle Screw Pin Nuts and Bolts by LifePulse Puzzle Game Studio. The inspected Google Play listing advertises wooden screw sorting, varied illustrated puzzles, city restoration, keys and chests, collectible screws, boosters, and progress synchronization. A developer response describes a five-slot pressure rule. These are storefront claims and documented responses, rather than a specification extracted from the application. [R1]
+
+The Apple listing explicitly describes matching three screws of a color and advertises an accessibility setting for color identification. Its advertising language differs from older review accounts. Current ad frequency, the exact level catalogue, and the internal generation and physics systems should therefore remain unspecified. [R2]
+
+### 2.2 What the inspected images show
+
+Two Google Play promotional images show a portrait board with a coin display and level label at the top, four colored cases with three circular sockets each, and five small neutral holes underneath. One board contains densely overlapping curved wooden strips. Another uses a circular floral composition. Colorful cross-head screws, dark piece outlines, shallow shading, a tan woodgrain backing, and an ornamental border establish the visual identity. The large captions at the bottom are promotional layout elements, not evidence of gameplay controls. [R3, R4]
+
+These images support a layered planar presentation with illustrated relief. They do not establish the game engine, default case count on every level, physical collision rules, or whether released pieces use simulated hinges. The proposed game's two-box baseline and deterministic plate clearing are deliberate design choices.
+
+### 2.3 The underlying decision loop
+
+The useful design abstraction is color sorting constrained by access and storage. A screw can be desirable because it fills a box, because removing it releases a layer, or because it prepares a later color. Those reasons can conflict. Spending a temporary space on a nonmatching screw may unlock a needed color, while taking an easy visible match may leave an important plate attached.
+
+The player therefore balances immediate progress with future access. The small storage limit turns a simple tap into a planning decision. The release of a layer provides both information and a visible reward. This relationship is the foundation to preserve when developing an original game.
+
+### 2.4 Qualitative player feedback
+
+Visible Woodle reviews raise a useful usability issue: players may see a matching destination and still perceive a full-buffer loss as inconsistent. They also report interruption from ads. These are individual experiences, not a representative measurement or proof about every current installation. [R1]
+
+The resulting design recommendation is precise: explain destinations, preserve valid matching moves, finish automatic transfers before checking failure, and make retry quick. Do not claim commercial performance will improve merely because these choices sound fair; test whether players understand and enjoy them.
+
+## 3 Similar games and design lessons
+
+### 3.1 Two families with different rules
+
+Color-sorting games send removed screws into matching cases and use a temporary tray for other colors. Screw-relocation games move fasteners into vacant board holes so plates can be dismantled. ABI's official description explicitly describes rearranging bolts to remove wooden plates. Those empty board holes are a different resource from a sorting buffer. [R8]
+
+Do not combine the two rule sets accidentally. Project Screwcraft uses color sorting and layer access. It does not require the player to choose a new physical hole for every removed screw.
+
+| Reference | Supported observation | Lesson for Project Screwcraft |
+| --- | --- | --- |
+| Woodle Screw | Layered color sorting, wooden and decorative motifs, and an advertised restoration metagame [R1-R4] | Keep a tactile board and meaningful reveals; use a smaller collection system initially |
+| Screw Jam by Rollic | Store imagery shows layered color sorting; official help documents hidden screws, five storage spots, and strict full-storage loss [R5, R6, R12] | Define routing and failure in code before animating them |
+| Screwdom 3D by iKame and Zego | Store description presents color boxes, untimed play, and recognizable model subjects; inspected imagery shows volumetric toy-like objects [R7] | Recognizable silhouettes help content feel different; full 3D also adds camera, occlusion, and asset work |
+| Wood Nuts and Bolts Puzzle by ABI | Official description establishes bolt relocation and wooden plate dismantling [R8] | Borrow the clarity of support relationships without importing a second core interaction |
+| Screw Puzzle Wood Nut and Bolt by FALCON | Inspected promotional imagery uses simple layered wooden strips and warm fasteners [R9] | A limited reusable piece kit can produce readable compositions |
+
+### 3.2 A documented difference in Screw Jam
+
+Rollic's official rules describe losing when all five temporary spaces fill. A separate support explanation says even a screw headed for a matching toolbox needs an empty temporary space. This is a documented insertion-first rule. Project Screwcraft instead routes direct matches without reserving a buffer position. Neither behavior should be an accidental consequence of animation order. [R5, R6]
+
+### 3.3 Useful advanced mechanics from the genre
+
+Rollic's obstacle guide documents linked screws, ice, alternating shutters, chains, locks and keys, color swaps, rotators, and collection-based covers, among other variants. Its booster guide describes another storage slot, exposing a lower layer, and activating another toolbox. These illustrate how mature games add constraints to a familiar loop. They are a menu of research references, not requirements for the first 30 levels. [R10, R11]
+
+Our first expansion should introduce one clearly telegraphed access constraint, then teach and validate it. Copying an entire obstacle catalogue would make the solver, tutorials, art, and testing multiply in complexity before the base puzzle has been tested.
+
+### 3.4 Competitive opportunity
+
+The proposed opportunity is a compact game with readable layers, dependable touch input, strategic storage, recoverable mistakes, and a collection that rewards progress without slowing it. Distinctive craft silhouettes, color-and-symbol screw identification, free inspection, and reliable save/resume can give the game its own identity.
+
+There is a tradeoff. A smaller metagame and fewer interruptions provide fewer immediate advertising and purchase placements. This document chooses to validate enjoyment first, then test optional commercial systems separately. It makes no revenue or retention prediction.
+
+## 4 Player experience and game identity
+
+### 4.1 Audience and session goals
+
+Design for players who want a short, understandable touch puzzle with enough planning to feel clever. The interface should work for someone unfamiliar with screw games. Avoid relying on tiny text, reflexes, color alone, or knowledge of other titles. Android is the first implementation target, but no region-specific theme or account should be required to play.
+
+Starting duration targets are 20-45 seconds for the first lessons, 60-150 seconds for ordinary early puzzles, and 2-4 minutes for later challenge boards. These are pacing hypotheses. Measure actual active play time and pauses rather than adding screws merely to hit a duration.
+
+### 4.2 The original theme
+
+Use a small craft workshop: layered wooden toys, leaves, birds, windmills, musical objects, little houses, and decorative keepsakes. Each puzzle finishes with an object stamp in a workshop album. Five first clears complete an album group and reveal a small display piece. The core puzzle remains in the foreground.
+
+Project Screwcraft is an internal name. Choose and check the public name separately. Create original iconography, compositions, sounds, UI, and artwork. Reference screenshots guide analysis; they are not production assets.
+
+### 4.3 Four qualities to protect
+
+- Readable decisions: the player can identify an exposed screw, its destination, and what its removal releases.
+- Satisfying response: every accepted tap produces immediate feedback followed by a short, clear movement.
+- Recoverable mistakes: undo and inspection turn an error into information, with no energy wait or mandatory ad.
+- Meaningful variety: levels change access relationships, queue planning, and object silhouettes, rather than only increasing screw count.
+
+Enjoyment and repeat play must come from understanding, anticipation, mastery, and completion. Do not treat frustration or long waiting periods as proof of engagement. No document can guarantee an addictive or successful game; the build must earn continued play in testing.
+
+## 5 Complete core rule specification
+
+### 5.1 Vocabulary
+
+| Term | Exact meaning |
+| --- | --- |
+| Screw | One selectable item with a stable ID, one color, one owning plate, a board position, and zero or more blocker plates |
+| Plate | A fixed-position craft piece that clears when all its owned screws have been removed from the board |
+| Exposed screw | A remaining screw whose blocker plates have all cleared |
+| Active box | A currently available destination that accepts exactly three screws of its assigned color |
+| Queue | A fixed ordered list of box definitions waiting to activate |
+| Buffer | Five ordered temporary locations for screws that cannot currently enter an active matching box |
+| Settled state | A logical state after every automatic box completion, replacement, and buffer transfer has finished |
+| Move transaction | One accepted screw tap and all of its resulting automatic changes |
+| Stuck | A settled state with unfinished goals and no legal board move |
+
+### 5.2 Initial state
+
+Load the authored level without randomizing its colors, box order, or dependencies. Activate the first two boxes, or fewer if the level has fewer total boxes. Each starts empty. The remaining sequence becomes the queue. Show the first two upcoming entries and make the complete remaining sequence inspectable for free. The buffer begins empty.
+
+Use the same rules from the first tutorial onward. Early levels become easier through their content, not by secretly increasing capacity or changing loss rules. If a future mode has a different capacity, show it and store it as an explicit ruleset.
+
+### 5.3 A legal tap
+
+A tap is legal only when the game accepts board input, the selected screw still exists on the board, all its blocker plates are cleared, and either a matching active box has room or the buffer has room. A covered screw cannot be selected merely because an enlarged touch target reaches around the covering plate.
+
+When multiple active boxes share a color, use the box that activated earlier. If an activation order tie exists in imported data, use its stable box ID as the final tiebreaker. Never depend on dictionary iteration or scene-tree order.
+
+Direct routing is compulsory when a matching active box has room. The player does not drag screws or choose to waste buffer space on an immediately matchable screw. Otherwise the screw enters the next available buffer position. The buffer records arrival order and stable screw IDs.
+
+### 5.4 One atomic move
+
+1. Validate the input against the current settled state and select a destination.
+2. Copy the complete pre-move puzzle state for undo.
+3. Remove the screw from the board and insert it into its destination.
+4. Clear every owning plate whose remaining screw count has reached zero.
+5. Complete full boxes in activation order, then stable box ID, and activate replacements in the same physical box positions.
+6. Scan the buffer from oldest to newest. Transfer the first screw that can enter an active matching box.
+7. After every transfer, resolve any completed box and its replacement, then scan the buffer again from its oldest entry.
+8. Continue until no full box or eligible buffer transfer remains.
+9. Validate invariants and evaluate completion or stuck status. Return the result to GameSession, which commits the move and schedules the settled state for saving.
+10. Present the ordered visual events. Allow further moves when critical visual changes are readable and the presenter signals completion.
+
+The logical transaction contains no animation waits, frame-dependent physics, network requests, or ad callbacks. It returns the new state and an ordered list of visual events. Cosmetic effects can continue after board input is restored if they no longer obscure selectable screws.
+
+### 5.5 Buffer behavior
+
+FIFO means oldest eligible entry first, not that an unmatched item at the front blocks every item behind it. For example, if the buffer contains yellow, blue, yellow and a blue box activates, blue transfers even though yellow arrived earlier. After removal, the remaining entries preserve their relative order.
+
+A full buffer alone is not a loss. An exposed screw that matches a box remains legal. Reject a nonmatching tap when all five places are occupied, leave the state unchanged, and briefly explain why. Recompute stuck status only after automatic resolution.
+
+### 5.6 Plate access and presentation
+
+Every MVP screw belongs to exactly one plate. A higher plate can hide screws owned by another plate. Its removal exposes those screws according to their blocker IDs. Screws do not physically connect multiple plates in this ruleset. Plate rotation, hinge support, impact, and falling collisions cannot alter access.
+
+After the last owned screw leaves, the plate becomes logically cleared and no longer affects picking or blocker checks. Its view may fall, tilt, fade, or slide away while board input remains gated. Restore input only when newly legal targets are visually readable. Animation never changes which screws the model considers exposed.
+
+### 5.7 Winning and being stuck
+
+Win only when all authored boxes have completed, no screw remains on the board, and the buffer is empty. Valid content guarantees these conditions agree. After settlement, an empty board with unmatched screws or unsatisfied quotas is CONTENT_ERROR, never a normal player STUCK result.
+
+Declare STUCK only at a settled state with unfinished goals and zero legal board taps. Present Undo and Restart immediately. If a wrong choice makes the eventual solution impossible while legal moves still exist, the game does not falsely claim that no moves remain. A requested solver hint may instead explain that an earlier decision needs undoing.
+
+Completion rewards are claimed once per stable level ID across ordinary content revisions. Leaving the result screen, resuming after a crash, or receiving a repeated signal must not duplicate the first-clear reward. Once victory and its permanent reward have committed, disable undo for that completed attempt; replay begins a new attempt.
+
+### 5.8 Undo and restart
+
+Undo restores the entire prior transaction: screw positions, cleared plates, active boxes, fill counts, activation sequence, queue cursor, buffer order, and puzzle counters. It reverses cascades as one move. Cancel stale animations, restore the model, and rebuild the presentation from that state. Do not reverse only the flying screw.
+
+Keep undo history for the current attempt, including across app suspension. Hints and inspection do not consume a move. Restart reconstructs the same authored level, preserving campaign rewards already earned but resetting the current attempt. A confirmed irreversible transition to another level can clear the old attempt history.
+
+### 5.9 Essential edge cases
+
+| Situation | Required outcome |
+| --- | --- |
+| Five buffered screws and an exposed direct match | Accept the match and resolve its consequences |
+| Five buffered screws and only nonmatching exposed screws | Show stuck after settling; offer undo or restart |
+| New box matches multiple buffered screws | Drain eligible entries and allow repeated box completion in one transaction |
+| Two matching boxes | Route to older activation, then stable ID |
+| User taps twice during extraction | Commit once; second action is ignored while input is gated |
+| No pending replacement box | Leave that destination inactive and visually distinct from an available box |
+| Tap on covered screw | Reject without changing state or consuming a move |
+| App closes during a flight animation | Resume from the committed settled model, with no replayed reward |
+| Undo after two boxes completed automatically | Restore the canonical pre-tap puzzle hash; use a fresh operational epoch |
+| Level data cannot satisfy its color quotas | Block content publication and report the validation error |
+
+## 6 Assistance and expansion mechanics
+
+### 6.1 Free assistance in the first build
+
+Undo is available in an active or stuck attempt when history exists. It should have a clear active or disabled state and no currency counter. A hint asks the solver for a winning continuation from the current settled state. Highlight one next screw and briefly state its purpose, such as clearing the top leaf to expose a blue screw. Do not label an arbitrary legal move as a guaranteed solution.
+
+If search exhaustively establishes no winning continuation, offer to undo toward a recoverable position. If the search budget runs out, say that a hint is unavailable and keep the game usable. A bounded search failure is not proof that the puzzle is impossible.
+
+Blueprint inspection separates or outlines layers and shows screw colors and blocker relationships without allowing removal. Queue inspection reveals the entire remaining order. These are free information tools. The player should not have to pay to discover information essential to a fair solution.
+
+### 6.2 Optional assist mode
+
+A later pre-level assist toggle may start an attempt with six buffer spaces instead of five. Treat this as a distinct explicit run configuration with a visible badge and separate mastery record. Validate assisted content with the same rule engine. Avoid changing capacity halfway through an attempt until the save, undo, and entitlement contracts are implemented.
+
+### 6.3 Priority for new mechanics
+
+| Priority | Proposed mechanic | Admission requirement |
+| --- | --- | --- |
+| First expansion | Visible key and latch | Exact unlock trigger, new schema fields, solver support, and three teaching levels |
+| Second expansion | Paired screws | Atomic paired routing, capacity reservation, undo support, and no partial execution |
+| Later experiment | Collection gate | Clear progress count and solvability proof including gate prerequisites |
+| Separate mode | Move-count pressure | A meaningful counted action definition; no confusion with the untimed campaign |
+| Research only | Swinging planks or rotatable 3D objects | A separate rules and camera prototype before committing content |
+
+For the key prototype, use a visible key screw whose removal from the board clears a specified latch. Clearly label this proposed trigger; it is not borrowed unchanged from any competitor. Do not introduce the mechanic into campaign JSON before its versioned contract and solver implementation exist.
+
+### 6.4 Boosters that need special care
+
+A tool that simply deletes a colored screw can leave its destination box permanently short. A hammer that removes a plate while its screws still exist changes both ownership and access. A box shuffle changes the puzzle queue. These are rule changes, not merely visual effects.
+
+Do not implement such tools as shortcuts in view scripts. If added later, each requires a defined state transition, conserved screw accounting or explicit quota changes, solver support, save behavior, undo behavior, and dedicated test fixtures.
+
+## 7 Level design principles
+
+### 7.1 Design a decision before a silhouette
+
+Write a one-sentence purpose for every level: for example, use one temporary space to release the last screw covering a useful color. Construct its access graph and box sequence first. Then arrange the pieces into a recognizable craft silhouette while preserving readable targets and the proven route.
+
+A level needs three independent checks. Its data must be valid. At least one route must solve it under the exact game rules. A person must be able to read the necessary relationships and enjoy making those choices on a phone. Passing a solver does not establish good pacing or understandable geometry.
+
+### 7.2 Difficulty dimensions
+
+| Dimension | Meaning | How to increase it responsibly |
+| --- | --- | --- |
+| Color spread | Number of identities competing for boxes and buffer | Add a color after its symbol and routing are understood |
+| Dependency depth | Number of plate releases needed to reach a screw | Add one meaningful layer, not many visually ambiguous overlaps |
+| Storage pressure | Highest buffer occupancy required by a known route | Require a planned temporary hold, then show a satisfying release |
+| Choice quality | Number of legal choices and how many preserve a solution | Mix safe decisions and teachable mistakes; avoid unexplained single-path traps early |
+| Queue planning | How far ahead the player must inspect box order | Teach preview use, then full queue inspection before relying on it |
+| Visual load | Number of exposed targets and competing edges | Keep targets readable; move complexity into dependencies instead of tiny screws |
+| Commitment cost | How many steps must be undone after a mistake | Keep early errors recoverable within one or two moves |
+
+Do not assume more screws automatically create a better hard level. Repeated trivial matches increase duration without increasing thought. Record a solver witness's peak buffer occupancy, but do not call it the minimum required capacity unless the solver has actually established that bound.
+
+### 7.3 Teaching sequence
+
+Teach one idea through action, then give an unprompted repetition. The first boards establish tapping, color-symbol matching, three-screw completion, plate release, and a queue replacement. Only after these are comfortable should the buffer create pressure. Teach Undo through a recoverable example and Blueprint through an intentionally hidden but inspectable layer.
+
+Use a short caption, a highlighted target, and one destination cue. The tutorial advances only after the relevant successful event. It must survive an interruption or restart without trapping the player behind an invisible input mask. Store tutorial progress separately from puzzle state and allow replay or reset from settings.
+
+### 7.4 Level rhythm
+
+Each five-level group should contain an introduction or warm-up, a practice board, a variation, a challenge, and a satisfying finale or recovery board. The specific order may change when testing shows fatigue. Do not place the most demanding board at every fifth level merely to manufacture a spending moment.
+
+Rotate silhouette families, plate shapes, and the direction from which layers reveal. Two boards with different colors but the same dependency graph should not count as two meaningful lessons. Mirroring a good board is useful for production testing, but repeated mirrors should not dominate the campaign.
+
+### 7.5 Authoring workflow and content gates
+
+1. Choose the lesson, expected duration, color counts, and layer budget.
+2. Allocate complete groups of three screws per box color and write a fixed box sequence.
+3. Build the dependency graph and a candidate winning route.
+4. Lay out plate footprints, screw centers, and blocker relationships.
+5. Validate IDs, quotas, layer order, geometry, hit spacing, and references.
+6. Replay the route through the production reducer and store the resulting hashes.
+7. Explore alternate choices or use the solver to find traps and recovery distances.
+8. Play on a physical phone with a fresh tester, without explaining the intended route.
+9. Revise the board, rerun validation, and record its content revision.
+
+No generated board enters the release catalogue until it passes these gates. The level schedule later in this document is a set of design briefs, not thirty finished geometric puzzles.
+
+## 8 Progression and rewards
+
+### 8.1 Campaign and album
+
+Unlock the next campaign level after completion. Previously cleared levels remain replayable. A level grants one album stamp on its first clear; five unique stamps complete a group. The album displays six groups for the first 30 levels, with an obvious current goal and a small decorative reward at each milestone.
+
+Keep the album lightweight: a paged collection of original object illustrations, locked silhouettes, and earned display items. The campaign must load and function even if the album scene is unavailable during development. A full city-building system would require an additional content pipeline, state machine, economy, and large art set.
+
+### 8.2 Initial economy
+
+| Item | Starting rule | Reason |
+| --- | --- | --- |
+| First clear | 20 cosmetic coins and one album stamp | Simple reward to explain and verify |
+| Repeat clear | Replay record only; no repeated first-clear coins | Prevent duplicate claims and keep initial economy predictable |
+| Album group | Completes after five unique first clears | Six visible milestones across 30 levels |
+| Basic cosmetic | 100 coins | Five first clears afford one small optional decoration |
+| Undo and inspection | Free | Essential learning and planning tools |
+| Hint | Free when a valid continuation can be found | Optional assistance without forcing an economy dependency |
+| Lives or energy | None in the campaign | Immediate continuation after a mistake |
+
+These values are initial design hypotheses. Thirty first clears yield 600 coins; six 100-coin decorations would use that entire first-clear supply. This is a transparent initial balance, not a prediction of player spending. If item prices change, recalculate the full earn-and-spend path and test whether the next desirable item feels reachable.
+
+### 8.3 Mastery without a misleading score
+
+Every normal solution removes every board screw once. A raw minimum tap score is therefore usually meaningless: most successful no-undo routes have the same extraction count. Do not build a three-star system around that count.
+
+Instead record completion, optional no-hint completion, hint use, undo use, and best active completion time for the player's own interest. Free undo remains compatible with the default mastery badge. Avoid making cosmetic or campaign access depend on fast play. If a future ranked challenge measures time, define pause, inspection, resume, and device differences separately.
+
+### 8.4 Optional daily content after the campaign works
+
+Add one validated daily board with a deterministic content ID and a browsable recent archive. Missing a day should not erase earned items. Keep the daily reward cosmetic and the campaign offline. A local date-based schedule can be manipulated by the device clock; accept that for an unranked cosmetic mode or add a server only if the product later needs authoritative events.
+
+Do not add a live leaderboard to a local-only prototype and imply it is secure. First establish content throughput, replay behavior, and whether players voluntarily return to the puzzle.
+
+## 9 Mobile interface specification
+
+### 9.1 Primary navigation
+
+The first launch enters the first puzzle after essential initialization. Returning players see a compact Home screen with Continue, the next campaign level, Album, and Settings. The album and settings never obscure a mid-level board. Android Back opens the same pause route as the on-screen control.
+
+Gameplay, Pause, Settings, Blueprint, Queue, Stuck, Result, Home, and Album are explicit screen or modal states. One top modal owns input. Closing an overlay returns to the same settled puzzle state.
+
+### 9.2 Portrait layout
+
+Use 720 by 1280 logical units as the reference composition. Apply the device safe area first, then fit and reflow the content. These coordinates describe a mockup, not raw physical screen pixels.
+
+| Region | Reference position | Contents |
+| --- | --- | --- |
+| Header | y 24 to 120 | Home or pause at left, level in the center, settings at right |
+| Orders | y 140 to 284 | Two large three-socket active boxes; two smaller Next previews |
+| Buffer | y 308 to 400 | Five evenly spaced holes with unmistakable empty and occupied states |
+| Puzzle | x 32 to 688 and y 420 to 1048 | Main layered craft object with release animation space |
+| Tools | y 1080 to 1232 | Equal Undo, Hint, and Blueprint controls with icon and label |
+
+The header needs no life counter, countdown, sale icon, or animated currency display during play. Put wallet information on Home, Album, and the result screen. Active boxes must look available; previews must look forthcoming rather than locked or purchasable.
+
+[[IMAGE:diagrams/portrait_UI_blueprint.png|Original UI blueprint with two active boxes three sockets per box two previews and five buffer positions]]
+
+### 9.3 Touch and responsive sizing
+
+Set a project target of at least 48 dp for actionable regions on supported phones, then verify the rendered result. Logical units are not dp. If a 720-unit content width occupies 360 dp, a 48 dp target requires 96 logical units. A screw head may be visually smaller while its eligible touch region is larger.
+
+Enlarged targets must remain unambiguous. Prefer clear exposed centers with adequate spacing. If a later board cannot fit comfortable targets, revise its composition or reveal pattern. Do not gradually make every screw smaller to fit more content. Uniformly scale the board, anchor the HUD, and use surplus tablet space as margins or album framing rather than stretching the puzzle.
+
+### 9.4 Interaction feedback
+
+Press feedback should appear before a long animation could make the touch feel missed. A selected screw lifts, briefly shows its destination, and travels there. A covered target gives a small blocked cue without consuming a move. At four occupied buffer slots, gently emphasize the last vacancy. Avoid an alarm that contradicts the untimed mood.
+
+While a move is resolving, ignore duplicate board taps and keep the current target visibly active. Do not silently queue a touch against a plate that will disappear. The input gate ends when the new model state is visibly readable; decorative dust and confetti should not extend it.
+
+### 9.5 UI state and text contract
+
+| State | Text and behavior |
+| --- | --- |
+| First match | Match screws to their boxes |
+| First temporary hold | This waits here until its box arrives |
+| Covered screw | Remove the piece above first |
+| Full buffer with direct matches | Buffer full. Match a ready box or Undo |
+| Stuck | No moves available; primary Undo and secondary Restart |
+| No undo history | No moves to undo yet |
+| Hint found | Highlight one validated next screw and its destination |
+| Hint search unknown | Hint unavailable right now; keep inspection and undo usable |
+| Blueprint | Read-only inspection and a clear Back to puzzle control |
+| Queue inspection | Numbered remaining boxes with active pair clearly separated |
+| Victory | Completed object, reward, album progress, and dominant Next button |
+| Recoverable save mismatch | Progress is safe. Restart this updated puzzle |
+
+An invalid input message should be brief, contextual, and nonblocking. Repeated invalid taps must not stack notifications. The result screen should require one action to continue; multiple reward popups are unnecessary.
+
+### 9.6 Settings and accessibility
+
+Provide separate sound, music, and vibration controls; reduced motion; persistent color symbols; text size options where layout allows; and a way to replay tutorial help. Symbols are on by default. Shape is redundant identification for color, not an additional matching rule.
+
+Keep important text readable against its actual background and evaluate the palette in grayscale, dim light, and on the chosen phones. A palette simulation is a useful review tool, not a guarantee of accessibility. Test with users when possible. Localize strings rather than baking them into sprites. Leave room for labels to expand by roughly 30 percent as an initial layout test.
+
+## 10 Visual style and art direction
+
+### 10.1 Materials and hierarchy
+
+Make the game resemble a small handmade object on a clean workbench. Use rounded corners, modest bevels, soft contact shadows, and calm woodgrain. The board surface is pale and quiet. Adjacent plates separate through value, grain direction, edge treatment, and consistent layer shadows.
+
+Reserve the strongest saturation for screw identities and matching destinations. Avoid photorealistic dirt, sharp metallic glare, dense decorative borders, and constantly moving background props. The player's eye should travel from an exposed screw to its box, then to buffer capacity.
+
+The visual depth is illustrative. A shared light direction, painted thickness, and short lift animation are enough to make the pieces feel tactile without requiring a dynamic 3D lighting system.
+
+### 10.2 Stable identity palette
+
+| Logical color ID | Starting swatch | Permanent identity symbol |
+| --- | --- | --- |
+| red | #D65353 | Circle |
+| blue | #477ACC | Diamond |
+| green | #5A8C45 | Triangle |
+| yellow | #D5A026 | Star |
+| purple | #8564B0 | Square |
+| teal | #168C96 | Three bars |
+
+Use canvas #F5F2E9, wood #E6D3B3, ink #343A37, and secondary text #68716B as starting support colors. These swatches need contrast and hardware testing. The sixth identity can exist in the art kit before it enters the campaign.
+
+Repeat each symbol on the screw face, active box, queue preview, buffer representation, and Blueprint. Theme changes may adjust decorative materials but must preserve identity consistency. Game logic compares the stable color ID, never a rendered RGB value or a texture name.
+
+### 10.3 Piece design
+
+Create a kit of straight strips, curves, corners, petals, disks, and broad organic pieces. Keep a consistent bevel width and separate visual outlines from the collider or opaque footprint used by the editor validator. A screw must look attached to its owning plate, not floating between unrelated pieces.
+
+Object families can include a toy boat, leaf, flower, bird, kite, teapot, little house, and windmill. Build different access graphs from the kit. The object silhouette provides personality; internal plate and screw placement provides the puzzle.
+
+### 10.4 Art approval gate
+
+Approve one complete board at the smallest supported phone size before mass production. Check that testers can identify every exposed screw, match each identity to its box, distinguish plate depth, and understand a release animation. Then approve one challenging board using the same kit. Do not create dozens of finished assets before discovering that the outline or screw size is unreadable.
+
+## 11 Asset production specification
+
+### 11.1 Reusable asset inventory
+
+Counts below are production targets, not requirements for one unique texture per level. Retain editable source files and generate atlases or exports through a repeatable pipeline.
+
+| Family | First 30 levels | Expansion to 100 | Export and anchor guidance |
+| --- | --- | --- | --- |
+| Screw face identities | 6 | Same 6 | 144 by 144 PNG; centered pivot; consistent rim and lighting |
+| Symbol masters | 6 | Same 6 | Editable vector and 128 by 128 mask; readable small engraving |
+| Socket and screw shadow | 2 | Same 2 | Centered transparent sprites; matching scale |
+| Plate shape templates | 12 | About 24 | Up to 1024 by 1024; shared bevel treatment and polygon footprint |
+| Tileable wood materials | 2 | 3 | 512 by 512; subtle grain and no visible edge seam |
+| Object compositions | 8 families | About 24 families | Data-defined combinations, not flattened complete puzzles |
+| Box and preview parts | 4 | Same 4 | Scalable body, lip, sockets, and preview frame |
+| Interface icons | 10 | About 14 | 128 by 128; consistent optical weight; no baked labels |
+| Album object illustrations | 8 reusable families | About 24 | 384 by 384; group labels and stamps supplied by UI |
+| Background | 1 | Up to 3 | 1440 by 2560; quiet central play area |
+| Feedback sprites | 6 | Up to 8 | Focus ring, hint ring, arc, dust, completion spark, stamp |
+| Short sound variations | About 18 | About 24 | Clean WAV masters; runtime import selected per sound |
+
+### 11.2 Asset metadata
+
+For every asset, record stable ID, source file, export file, dimensions, intended logical size, pivot, attachment anchors, material, author or license, and revision. A plate entry additionally needs its opaque footprint and intended screw attachment area. A sprite's transparent padding must not silently move its pivot.
+
+Example filenames are sc_screw_red_circle_v01.png, sc_panel_curve_beech_v01.png, sc_ui_hint_128.png, and sc_album_toy_boat_v01.png. Keep original layered or vector sources separate from runtime exports. Level data references an asset ID resolved by the catalog, so renaming a texture does not require rewriting puzzle logic.
+
+### 11.3 Creation and import workflow
+
+Create the geometry or vector master, apply the shared material and light direction, export on the approved scale, and inspect inside the actual Godot scene. Use lossless UI textures where edge quality matters. Verify texture filtering and atlas padding at the smallest and largest supported display scales.
+
+Pre-rendered simple 3D models are an optional asset-production method: build a small beveled model once and render it from a fixed orthographic camera to a transparent sprite. That does not change the gameplay architecture into a 3D game. Avoid inconsistent camera angles among assets.
+
+Use original work or assets with recorded usage rights. Do not download competitor screenshots as production textures. If an asset-generation tool is used, generate isolated pieces or style explorations, then manually normalize silhouettes, pivots, symbols, and footprints. A generated complete board image cannot replace interactive piece data.
+
+### 11.4 Prompt for the art specialist
+
+Create an original mobile craft-puzzle kit with pale wood, rounded beveled pieces, soft contact shadows, restrained texture, and a single upper-left light direction. Colorful screw faces are the highest-contrast objects. Preserve the six exact color-symbol identities in the specification. Export isolated transparent parts with centered pivots and no text, watermark, UI frame, or complete puzzle baked into the image. First deliver one screw family, three plate shapes, one box, and a playable board composition for readability approval.
+
+This is an art brief. Exact socket counts, symbols, game text, and attachment locations should be authored or verified through deterministic tools before integration.
+
+## 12 Motion sound and game feel
+
+### 12.1 Interaction timing
+
+| Event | Starting duration | Purpose |
+| --- | --- | --- |
+| Press response | Within 50 to 70 ms | Acknowledge the selected target |
+| Twist and lift | 100 to 150 ms | Communicate unscrewing |
+| Travel to destination | 140 to 200 ms | Show where the screw goes |
+| Seating accent | 60 to 100 ms | Confirm successful sorting |
+| Plate release | 220 to 320 ms | Reveal the new layer clearly |
+| Box completion and replacement | 180 to 260 ms | Communicate completion and next demand |
+| Victory response | About 600 ms before unrestricted Next | Give completion weight without a long wait |
+
+These phases should overlap where comprehension allows. Do not add every duration sequentially and produce a sluggish action. Aim for the next meaningful tap to be available within roughly 250-400 ms on a simple move, then tune on device. Cascades need enough time to read the changed boxes; their logical outcome is already committed.
+
+Use a small amount of motion, an audible click, and a destination response together. Avoid shaking the whole board on every tap. In reduced motion mode, replace large flights and falls with short fades or position changes. The accessible version must communicate the same outcome.
+
+### 12.2 Audio layers
+
+Use a dry click for selection, a short soft twist for extraction, a slightly brighter seating click, a lower wooden release sound, a restrained box-completion note, and a brief victory phrase. Prepare multiple small variations so repeated actions do not sound mechanical. Keep variation narrow enough that one event remains recognizable.
+
+Use independent Master, SFX, Music, and UI buses. Start with little or no music; an optional quiet workshop ambience is enough. Use clean 48 kHz WAV source recordings for editing, then test the chosen Godot import settings. Keep frequent short effects readily available to avoid first-play delays. Limit simultaneous cascade sounds rather than stacking every event at full volume.
+
+### 12.3 Haptics and interruption
+
+Provide one light accepted-action response and a restrained completion accent. Do not buzz for every buffered transfer in a long cascade. Respect the user's vibration setting and degrade gracefully if the device lacks support.
+
+After pause, an advertisement, or returning from the background in a later monetized build, restore the intended audio bus state. A view being destroyed must not leave music muted or a looping sound playing. Audio and vibration failures never invalidate a puzzle move.
+
+## 13 Godot architecture and component contracts
+
+### 13.1 Model first
+
+Implement the puzzle as a data model and synchronous reducer independent of scenes. A reducer takes immutable level definitions, the current state, and a command, then returns either a rejection or a new settled state with ordered events. It must not mutate its input. This architecture is a proposed project choice that makes gameplay, search, replay, and validation use the same rules.
+
+Use typed GDScript, small named functions, composition, and explicit data ownership. Export configuration that a designer should tune. Keep rule values in one RulesetData resource and visual values in PresentationConfig. Do not introduce several unrelated managers holding copies of the buffer capacity or current level.
+
+Godot caches loaded Resources and provides duplication and scene-local options. Consequently, changing a loaded level resource in place can affect another user of the same resource. Treat level definitions as immutable and construct fresh runtime state for each attempt. [T3]
+
+### 13.2 Module responsibilities
+
+| Component | Owns | Main contract |
+| --- | --- | --- |
+| LevelRepository | Validated level definitions and content hashes | load_level and get_catalog |
+| PuzzleReducer | Rule transitions and invariants | create_initial_state, get_legal_moves, apply_select |
+| PuzzleState | Board membership and all sorting state | clone_for_transaction and canonical_hash |
+| GameSession | Current attempt, history, command gating | start_level, request_select, undo, restart, suspend |
+| BoardInputRouter | Touch-to-ID selection | pick_screw at board-local position |
+| BoardView | Screw and plate visual instances | build_from_level and reconcile_from_state |
+| AnimationDirector | Ordered presentation and cancellation | present_events and cancel_and_reconcile |
+| HUDPresenter | Boxes, buffer, queue, and control states | render_state without mutating it |
+| Solver | Verified continuations through the reducer | search returning SOLVED, UNSOLVABLE, or UNKNOWN_LIMIT |
+| LevelValidator | Static and replay validation | validate_definition and validate_witness |
+| SaveService | Profile and attempt persistence | enqueue_snapshot, load_best_valid_save, migrate |
+| PlatformServices | Replaceable platform integrations | haptics, ads, purchases, analytics interfaces |
+
+### 13.3 Scene composition
+
+| Scene or node | Parent or location | Role |
+| --- | --- | --- |
+| AppRoot | Project entry scene | Screen routing and service references |
+| GameScreen | AppRoot screen container | Owns one visible puzzle session |
+| GameSession | GameScreen | Model and accepted-command history |
+| BoardInputRouter | GameScreen | Resolves input against legal targets |
+| AnimationDirector | GameScreen | Controls critical presentation completion |
+| CanvasLayer and SafeAreaRoot | GameScreen | Responsive GUI independent of world coordinates |
+| HUD and ToolRow | SafeAreaRoot | Orders, queue, buffer, Undo, Hint, Blueprint |
+| BoardContainer and BoardView | SafeAreaRoot play region | Uniformly transformed 2D piece views |
+| ModalLayer | GameScreen above gameplay | Pause, inspection, stuck, and result interfaces |
+
+ScrewView.tscn, PlateView.tscn, BoxView.tscn, and BufferSlotView.tscn are reusable scenes. They receive IDs and presentation data. They do not remove items from global arrays or decide when the level is won. Global services should be limited to genuine cross-screen needs, such as saving and audio.
+
+### 13.4 State fields
+
+PuzzleState includes level ID, level revision and content hash, ruleset ID and hash, board screw membership, ordered buffer IDs, active box records, completed box records, queue cursor, activation sequence, accepted move count, and puzzle status. Active and completed boxes preserve their contained screw IDs, not only counts, so conservation can be checked.
+
+Plate presence can be derived from remaining owned screws. If cached counts are used, validate them against board membership rather than saving a conflicting second truth. Immutable definitions contain all positions and blocker relationships. Node references, tweens, audio handles, display coordinates, and wall-clock timestamps remain outside the puzzle state.
+
+A canonical hash must include the level content hash and resolved rules hash, then preserve every future-relevant distinction: which screws remain, buffer order, active box identities and fills, activation priority, and queue cursor. Exclude session epoch, operational transaction IDs, timestamps, and purely visual state. Do not sort the buffer as an optimization; its order affects transfers.
+
+### 13.5 Command and event contract
+
+The MVP accepts SelectScrew with a stable screw ID. Undo, restart, pause, and inspection are GameSession operations with their own validation. A later mechanic should extend a versioned command vocabulary rather than introduce an unrelated script path.
+
+apply_select returns accepted, rejection_reason, next_state, and events. Reducer rejection reasons include UNKNOWN_SCREW, ALREADY_REMOVED, COVERED, and NO_DESTINATION. GameSession separately returns INPUT_GATED when presentation or navigation prevents a command from reaching the reducer. A rejected command does not create history or change the accepted-move count.
+
+Events use stable IDs and explicit destinations. Initial event types are ScrewRemoved, ScrewRouted, PlateCleared, BoxCompleted, BoxActivated, BufferTransferred, PuzzleWon, and PuzzleStuck. Events contain enough information to animate the transition from the before-state to the after-state without reading a partially mutated scene. The model remains the final authority if an animation is skipped.
+
+[[IMAGE:diagrams/transaction_flow.png|Logical moves commit before presentation while saving is handled by a serialized service]]
+
+### 13.6 Exported configuration example
+
+This fragment is an implementation contract to place in scripts/data/ruleset_data.gd. It is not presented as code tested in a running Godot project.
+
+```gdscript
+class_name RulesetData
+extends Resource
+
+@export var ruleset_id: StringName = &"classic_sort_v1"
+@export var ruleset_revision: int = 1
+@export_range(1, 4, 1) var active_box_slots: int = 2
+@export_range(1, 8, 1) var box_capacity: int = 3
+@export_range(1, 12, 1) var buffer_capacity: int = 5
+@export_range(0, 4, 1) var queue_preview_count: int = 2
+```
+
+Store one approved classic_sort_v1.tres definition in content/rulesets. All campaign levels reference it. Inspector flexibility supports future rulesets and experiments; it does not authorize agents to vary campaign rules silently.
+
+PresentationConfig should separately export lift_duration, travel_duration, plate_release_duration, reduced_motion_duration, minimum_touch_target_dp, hit_padding, palette, effect_scene references, and audio resources. Tune these without rewriting puzzle rules. Expose dependencies as exported node or resource references instead of fragile paths such as several get_parent calls.
+
+### 13.7 Input and asynchronous safety
+
+Let GUI controls consume input before gameplay. Godot's input guidance describes _unhandled_input as suitable for gameplay that should yield to GUI handling. Convert touch positions to board-local coordinates and choose a stable screw ID there. Use one mobile touch path so mouse emulation cannot collect the same screw twice. [T4]
+
+Give each session an epoch and each accepted move a transaction ID. Restart, undo, restore, and navigation increment the epoch and cancel active tweens. Every delayed callback checks its captured epoch and transaction before releasing input or touching the view. The reducer itself contains no await.
+
+Hints need the same discipline. Bind each search request to the current canonical state hash and epoch. Discard a returned highlight if the player has moved, undone, restarted, or left. Keep expensive search off the interaction-critical path, through a bounded incremental worker or other measured implementation.
+
+Use separate enums for puzzle status and presentation phase. A puzzle can be logically ACTIVE while the screen is PRESENTING or PAUSED. Clear captured fingers on suspension, refresh safe-area layout on resume, and reconstruct the view from the committed model if animation continuity is uncertain.
+
+## 14 Level data and geometry contracts
+
+### 14.1 Source of truth
+
+Use agent-readable JSON for authored levels, one central Godot Resource for each ruleset, and an art catalog for asset metadata. Convert validated JSON into typed definition objects in memory. A future importer may generate .tres level files, but generated files must not become a second independently edited source. Ensure raw level JSON is included in the export, using the appropriate import or non-resource export settings; an editor-only file that is missing from the packaged build is not a working content pipeline. [T7]
+
+| Record | Required fields |
+| --- | --- |
+| Level | schema_version, level_id, revision, ruleset_id, ruleset_revision, board_reference_size |
+| Level content | boxes_in_activation_order, plates, screws, reference_solution, tutorial_tags |
+| Box | id and color_id; capacity comes from the referenced ruleset |
+| Plate | id, layer, sprite_key, position, rotation, screw_ids; footprint resolves from the art catalog |
+| Screw | id, plate_id, color_id, board-local position, blocker_plate_ids |
+| Validation record | level hash, rules hash, witness hash, validator version, validation status |
+| Design brief | lesson, intended difficulty, count inventory, silhouette family, review notes |
+
+JSON numeric values must be validated and converted explicitly into the intended integer or float types. Reject invalid counts, non-finite coordinates, unknown colors, and missing IDs. Save display labels separately from stable IDs.
+
+### 14.2 Supply invariants
+
+For each color, the screw count must equal three times the number of boxes of that color in this ruleset. Checking only that the total is divisible by three is insufficient. Four red screws and two blue screws cannot fill one red box and one blue box.
+
+Each screw belongs to exactly one of four locations: board, buffer, active box, or completed box. Every box contains only its assigned color. No container exceeds capacity. At a settled state, no buffered screw can immediately move into an active box. These invariants should run in development builds and automated replay validation.
+
+### 14.3 Geometric validity
+
+Use authored opaque polygons or another deterministic footprint representation in the editor validator. The versioned art-catalog footprint plus the level instance transform is the geometric authority; do not independently edit a second footprint in the level. Require every plate to own at least one screw and every blocker to be on a higher logical layer than the blocked screw's owner. Its footprint must visually cover the screw head under the level's transforms. Do not infer blockers by reading rendered texture alpha every frame.
+
+Prefer fully exposed or clearly covered screw heads. Flag marginal edge overlaps and apparent contradictions. The enlarged touch region is not the visual head footprint used for occlusion analysis. It exists for comfort and must not change whether the screw is exposed.
+
+Check that screw anchors lie on their owning plate, that interactive centers fit the safe play region, and that legal targets remain distinguishable at minimum supported scale. A valid acyclic graph cannot prove any of these visual facts.
+
+### 14.4 Versioning content
+
+Use stable level IDs such as campaign_001 and increment revision when rules-relevant content changes. Hash the resolved ruleset and canonical level data. Art-only edits may retain the puzzle hash if they do not change its footprint or gameplay geometry. A separately rewarded remix receives a new level ID.
+
+Ordinary content revisions do not award first-clear coins again. Retain an available old revision for active saves when feasible, or preserve permanent progress and explain why the current attempt needs restarting. Never guess a mapping from old screw IDs onto new geometry.
+
+## 15 Saving progression and restoring attempts
+
+### 15.1 Save envelope
+
+Store save_schema_version, save_sequence, a corruption-detection checksum, settings, completed level IDs, wallet and cosmetics, tutorial progress, active attempt, and reward grant ledger. The active attempt includes level and rules hashes, a settled snapshot, and an action journal sufficient to reconstruct undo history.
+
+Use user:// for saves and explicit data serialization. Godot supplies FileAccess for file I/O and DirAccess methods for checked filesystem operations. Do not serialize scene Nodes or load executable script-bearing Resources from arbitrary save input. [T7, T8]
+
+### 15.2 Interrupted writes
+
+Use an A/B snapshot scheme. Write the older slot through a complete temporary file in the same directory, flush and close it, validate its contents, and replace the slot while checking return codes. On startup, choose the valid slot with the highest sequence. Retain the other known-good copy until the next successful write.
+
+This reduces interrupted-write risk; it is not a promise of immunity to every storage or power failure. Never delete the only valid copy before the replacement succeeds. Serialize writes through one SaveService so a late older write cannot overwrite a newer snapshot.
+
+Save settled moves promptly and persist on suspension when possible. Do not rely on a graceful exit notification. On resume, reconcile the scene to the saved logical state rather than attempting to finish a half-recorded flying animation.
+
+### 15.3 Rewards and migrations
+
+Save the level-completed flag and its first-clear reward grant in the same envelope. Use a durable key such as first_clear:campaign_012. If the win presentation runs twice, the grant ledger prevents another payment. Undo operates only inside an unfinished attempt and never rewinds permanent purchases, wallet grants, or completed rewards.
+
+Migrate sequentially on a copy, validate after each step, and keep the original for recovery. An unknown future save version must not be replaced with a new empty profile. If a current level changed incompatibly, preserve the wallet, collection, and previous completions while restarting only the incompatible attempt with clear text.
+
+The checksum detects accidental corruption. It is not secure purchase verification or meaningful anti-cheat protection.
+
+## 16 Solver hints and content tools
+
+### 16.1 One transition engine
+
+The production solver must call the same reducer used by gameplay. Begin with bounded depth-first search and memoization, or another explicit search method justified by measured performance. Each forward move removes a board screw, so the search is finite, but the number of distinct orders can still grow quickly.
+
+A saved successful replay proves that at least one solution exists. An exhaustive search can establish impossibility within a declared ruleset. A timed-out search can establish neither. Return SOLVED with a witness, UNSOLVABLE after exhaustive exploration, or UNKNOWN_LIMIT when a budget is reached.
+
+Preserve buffer order in the state key. Do not treat same-color screws on different plates as interchangeable: removing them can expose different dependencies. Apply symmetry reduction only when equivalence has been demonstrated for all relevant state effects.
+
+### 16.2 Hints from the current state
+
+The original solution's next index is not a valid general hint after the player chooses another route. Search from the current state or look up a prevalidated continuation by exact state hash. Give the next move only after its continuation is known to work.
+
+For the first production build, begin with a short runtime search budget and state-keyed tutorial hints. If arbitrary-state search is too expensive on the minimum device, return an honest unavailable result and keep Undo and Blueprint usable. Offline tooling can precompute common continuations. Do not let the promise of hints block completion of the basic playable loop.
+
+### 16.3 Candidate generation
+
+Generate candidates offline. Choose conserved color inventories and a fixed box queue, construct a legal color-removal sequence, assign plate ownership, and add blockers only where the blocking plate clears earlier in the known trace. Then validate the graph, replay the witness, lay out geometry, and review on device.
+
+A trace-preserving graph transformation can preserve one abstract route while still creating unreadable art. A random seed alone is not a certificate of solvability or fun. Store accepted output as a normal versioned authored level. Ship a finite catalogue of accepted content rather than generating unchecked boards during a player's session.
+
+### 16.4 Minimum authoring tools
+
+Provide a debug overlay that shows screw IDs, plate IDs, layer numbers, blocker links, exposed status, intended destination, and current canonical hash. Provide commands to replay a witness, step a move, undo, run invariants, export a screenshot, and search for a continuation.
+
+The level designer must be able to add a board without changing gameplay scripts. Validation should identify the exact offending level, screw, plate, color, or reference rather than returning a generic failure.
+
+## 17 Mobile performance and release preparation
+
+### 17.1 Responsive implementation
+
+Begin with canvas_items stretching, an expand aspect strategy, anchored Controls, and a board that scales uniformly inside its region. Godot's multiple-resolution documentation describes portrait configurations and the implications of stretching. Read DisplayServer.get_display_safe_area and convert from display coordinates into the UI coordinate system before applying margins. [T5, T6]
+
+Do not paste physical safe-area pixel values directly into logical margins. Recalculate after window or display changes and test notches, rounded corners, gesture bars, and foldable or tablet proportions.
+
+### 17.2 Device targets
+
+| Measure | Initial acceptance target | Evidence required |
+| --- | --- | --- |
+| Midrange gameplay | Sustained 60 FPS during ordinary play | Release build trace on a named physical phone |
+| Battery mode | Stable 30 FPS with unchanged rules | Replay and frame-time comparison |
+| Visible touch response | Under 100 ms on the baseline | Screen capture or measurement during actual input |
+| Major gameplay hitch | No repeatable hitch over 100 ms | Test box cascades and plate release |
+| Cold start | Playable first puzzle within roughly three seconds | Measured install and cold-launch conditions |
+| Memory and heat | Stable through repeated levels and retries | Longer device session with memory and thermal notes |
+
+These are project targets. Name the minimum Android version, RAM, GPU, and actual phones after early export tests; the document does not invent a supported-device matrix without a build. Supporting a modern target SDK does not mean old devices automatically meet performance requirements.
+
+Share textures and materials, minimize large translucent overlays, bake soft shading, bound particles, and stop unnecessary processing on static pieces. Profile the actual bottleneck before adding pooling or complicated optimizations. Godot's optimization guidance emphasizes measurement. [T9]
+
+### 17.3 Export gate
+
+Install matching export templates and create an ARM64 Android build at the beginning of development. Verify JDK, SDK, Gradle, and any native plugin versions against the pinned engine. Godot's Android guide documents the export setup and AAB workflow. [T10]
+
+As researched on 8 October 2026, Google Play requires new phone-app and update submissions to target Android 16 or API 36 or higher. Check the requirement again before submission; a lower SDK example in an engine setup guide is not the current store requirement. [T11]
+
+Validate 16 KB page-size compatibility across the exported native libraries and any later advertising or purchase SDKs using Android's official guidance. Test the final release package, not only an editor preview. [T12]
+
+Keep signing credentials outside the project and agent handoff. Releasing to a store is a separate action from preparing a working build and reviewable release candidate.
+
+## 18 Quality assurance and playtesting
+
+### 18.1 Meaningful automated checks
+
+| Test family | Required checks |
+| --- | --- |
+| Routing | Direct matches, buffer insertion, oldest matching box, duplicate colors |
+| Resolution | Eligible FIFO skipping, repeated box replacement, final queue exhaustion |
+| Terminal states | Full buffer plus legal direct match, real stuck, win, invalid empty-board remainder |
+| State integrity | Every screw conserved, no mixed-color box, no duplicated ID, immutable input state |
+| Undo and replay | Exact canonical snapshot restoration including cascades; deterministic action journal |
+| Content | All shipped witnesses, per-color totals, IDs, blocker graph, geometry alignment |
+| Lifecycle | Double tap, undo during presentation, restart, pause, resume, stale hint result |
+| Persistence | Truncated save, corrupt slot, delayed older write, schema migration, content mismatch |
+| Rewards | Duplicate win signal, resume on result screen, first-clear grant committed once |
+
+These tests address consequential state and lifecycle risks. Avoid a large test suite that merely repeats getters or matches the same implementation line by line. The fixture in Section 22 is a concrete regression oracle for several critical cases.
+
+### 18.2 Device and visual checks
+
+Test the smallest supported phone layout, a tall phone, a notch or camera cutout, and a tablet-like ratio. Verify touch selection with the user's thumb, rapid taps, two fingers, system Back, and a modal over the board. Run airplane mode, background/foreground transitions, audio interruption, low storage, and repeated restart or undo operations.
+
+Test reduced motion and color symbols through actual play. Confirm no animation can obstruct a newly legal target after input resumes, no decorative particle intercepts input, and no invisible GUI rectangle consumes board taps.
+
+### 18.3 First usability session
+
+Observe about five people who have not seen the project. Let them play without spoken instructions. Ask them to explain what makes a screw available, what happens when a box fills, what the buffer does, and why a full buffer can sometimes remain playable.
+
+A useful initial gate is at least four of five completing the first three levels without developer intervention, followed by correct explanation of the taught buffer example. This small study is for finding problems, not for establishing population-level conversion or retention. Record exact confusion and revise the affected board or cue.
+
+After the first ten levels, ask whether they want to play another level and why. Observe whether they actually do so. Repeated voluntary play is more informative than asking whether a polished mockup looks addictive.
+
+## 19 Analytics and balancing decisions
+
+### 19.1 Minimum events
+
+Begin with local diagnostic logging. Add a replaceable analytics provider only when testing or release needs it. Useful events are level_start, accepted_move, rejected_move with reason, undo_used, inspection_opened, hint_result, level_stuck, level_complete, restart, save_restore, and content_error. Batch high-volume move data for internal tests rather than sending every tap by default.
+
+Include anonymous attempt ID, content and rules revision, level ID, active play duration, highest buffer occupancy, hints and undos, and completion outcome. Do not collect contact lists, precise location, or unrelated device information to balance a screw puzzle.
+
+### 19.2 Definitions before targets
+
+Define first-attempt completion as players completing a level on their first attempt divided by players starting it for the first time. Keep abandoned attempts visible; do not quietly exclude them. Define session and active play time consistently, excluding background time and separately reporting inspection time if it matters.
+
+If later measuring next-day retention, record the cohort's first-play date and the subsequent return window explicitly. No industry retention target is asserted here. Compare versions with adequate samples, and keep content changes separate from advertising changes so the cause of a result is interpretable.
+
+### 19.3 What findings should change
+
+Many covered-screw taps suggest unclear visual depth or input targeting. Repeated early buffer traps suggest insufficient teaching or an overly narrow route. High undo use can indicate healthy experimentation or confusion; combine it with observation and completion. Quick exits from the result screen can indicate interruptive rewards. A long session can mean enjoyment or frustration, so duration alone is not success.
+
+## 20 Optional monetization and later service work
+
+Keep the first playable and initial usability tests free of ad SDKs and purchases. Use null service implementations. Once the core is validated, optional cosmetic purchases and opt-in post-level cosmetic reward videos are a coherent first experiment. Standard progression, Undo, queue inspection, and Blueprint remain available without them.
+
+If interstitials are tested later, place them only at natural completion boundaries, keep tutorials and immediate retries clear, cap frequency, and measure departures and satisfaction alongside revenue. Do not interrupt an unresolved move or change puzzle solvability based on spending. No advertising cadence or price is declared optimal here.
+
+Rewarded-ad service events must distinguish loaded, shown, dismissed, failed, and reward earned. Google documents a separate earned-reward callback and notes callback ordering differences for mediated ads. A close event or resume event is not evidence of a reward. Use official test advertising during development. [T13]
+
+Bind a reward request to a durable ID and promised benefit, grant it once, and persist it. A late earned callback must not modify the wrong attempt or disappear because its original screen closed. Purchases require a verified entitlement path and restoration behavior separate from local puzzle progress. Select maintained Godot plugins and verify their exact native SDK compatibility only when this phase begins.
+
+## 21 Thirty level production plan
+
+### 21.1 Reading the inventory
+
+The inventory vector below gives the number of boxes in this order: red, blue, green, yellow, purple, teal. Multiply each entry by three to obtain that color's screw count. For example, 2/1/1/1/0/0 means six red screws, three blue, three green, three yellow, and fifteen total screws.
+
+The vectors establish conserved inventories. They do not specify a full box queue, geometric layout, or winning route. These are design briefs requiring authoring and production-reducer validation. Level 08 has a validated abstract fixture in Section 22, but its production geometry and Godot implementation remain to be built.
+
+### 21.2 Levels one through ten
+
+| Level | Box inventory | Screws | Layers | Main objective |
+| --- | --- | --- | --- | --- |
+| 01 | 1/1/0/0/0/0 | 6 | 1 | Two sample planks; learn that three matching screws complete a box |
+| 02 | 1/1/0/0/0/0 | 6 | 2 | Layered tag; remove the final red fastener to reveal the blue plate |
+| 03 | 1/1/1/0/0/0 | 9 | 2 | Capped corner; temporarily hold one green screw to expose a needed red |
+| 04 | 1/1/1/1/0/0 | 12 | 2 | Toy sail; see waiting screws transfer automatically when their box arrives |
+| 05 | 1/1/1/1/0/0 | 12 | 2 | Signpost; learn the two previews and free full queue drawer |
+| 06 | 1/1/1/1/0/0 | 12 | 2 | Crossed brace; remove different colors that share one owning plate |
+| 07 | 1/1/1/1/0/0 | 12 | 2 | Layered flower; use Blueprint to identify covered colors and blockers |
+| 08 | 1/1/1/1/0/0 | 12 | 3 | Two green caps; use Undo and understand a full buffer with a legal match |
+| 09 | 2/1/1/1/0/0 | 15 | 3 | Repeated orders; the same color may need more than one box |
+| 10 | 2/2/1/1/0/0 | 18 | 3 | An unprompted keepsake; combine a branch, reveal, and planned transfer |
+
+Level 01 permits no buffering because both colors have active boxes. Level 02 teaches a release without adding storage pressure. Level 03 introduces one off-color cap and plenty of room. Level 04 highlights the first automatic transfer briefly but does not ask the player to drag. Level 05 teaches queue inspection before later boards depend on longer planning.
+
+Level 06 shows the remaining fasteners of a shared plate. Level 07 makes hidden information inspectable without changing the board. Level 08 introduces Undo without forcing an error; the example fork can be optional guided help. Level 09 shows six screws of a repeated color and two corresponding queue entries. Level 10 removes tutorial prompts and tests whether the player can combine the learned tools. Album groups complete at levels 05 and 10 under the five-level progression rule.
+
+### 21.3 Levels eleven through thirty
+
+| Level | Box inventory | Screws | Layers | Design brief and witness buffer target |
+| --- | --- | --- | --- | --- |
+| 11 | 1/1/1/1/0/0 | 12 | 2 | Recovery board with a visible transfer; target peak 2 |
+| 12 | 2/1/1/1/0/0 | 15 | 2 | Two branches; one clearly exposes a current color; target peak 3 |
+| 13 | 2/2/1/1/0/0 | 18 | 3 | A mixed-color brace joins two subproblems; target peak 3 |
+| 14 | 2/1/1/1/1/0 | 18 | 3 | Introduce purple through a familiar cap motif; target peak 3 |
+| 15 | 2/2/1/1/1/0 | 21 | 3 | Queue-informed challenge with inspectable information; target peak 4 |
+| 16 | 1/1/1/1/1/0 | 15 | 2 | Relief with a readable chain and useful transfer; target peak 2 |
+| 17 | 2/1/1/1/1/0 | 18 | 3 | Choosing a cap changes storage demand; target peak 3 |
+| 18 | 2/2/1/1/1/0 | 21 | 3 | Prepare a future box while finishing an anchor; target peak 4 |
+| 19 | 2/2/2/1/0/0 | 21 | 3 | Repeated orders and oldest-box routing; target peak 4 |
+| 20 | 2/2/2/1/1/0 | 24 | 3 | Two branches and a double cascade; target peak 4 |
+| 21 | 2/1/1/1/1/0 | 18 | 2 | A compact recovery board with a new silhouette; target peak 2 |
+| 22 | 2/2/2/1/1/0 | 24 | 3 | Overlapping anchors with clear inspection; target peak 4 |
+| 23 | 2/2/1/1/1/1 | 24 | 3 | Introduce teal while easing space pressure; target peak 3 |
+| 24 | 2/2/2/1/1/1 | 27 | 4 | First fourth layer with generous exposed targets; target peak 4 |
+| 25 | 2/2/2/1/1/0 | 24 | 3 | Consolidate repeated orders with shorter goals; target peak 3 |
+| 26 | 2/2/2/1/1/1 | 27 | 4 | Plan through two replacements using the queue; target peak 4 |
+| 27 | 2/2/2/2/1/1 | 30 | 4 | Larger mixed braces without redundant taps; target peak 4 |
+| 28 | 2/2/2/1/1/0 | 24 | 3 | Breathing space and a distinctive object; target peak 3 |
+| 29 | 2/2/2/2/1/1 | 30 | 4 | Rehearse three meaningful choices; target peak 4 |
+| 30 | 2/2/2/2/1/1 | 30 | 4 | Final fair capstone with a reviewed recovery route; target peak 4 |
+
+The listed peaks are maximum desired occupancy on an authored winning witness, not computed minimum-capacity claims. Counts can be reduced if the intended lesson does not fit comfortable phone geometry. Do not preserve a target screw count at the expense of readable decisions.
+
+### 21.4 Expansion to one hundred
+
+For levels 31-50, recombine the strongest familiar motifs and add new craft silhouettes. For 51-75, emphasize repeated orders and shared anchors. For 76-100, combine the best patterns and allow occasional longer boards only if device readability and observed solve time support them. A tentative ceiling around 36 screws is a content hypothesis, not a goal for every late level.
+
+Keep the core rules stable through the first expansion. Introduce a new mechanic only after its separate prototype, schema, solver, tutorial, and test gate pass. Every accepted level requires a fixed revision, production replay, geometry review, and human review. Repeated recolors do not substitute for new decisions.
+
+## 22 Validated abstract example
+
+### 22.1 Inventory and access
+
+This reference contains twelve screws: R1-R3, B1-B3, G1-G3, and Y1-Y3. Red and blue boxes start active; green then yellow are queued. Each box requires three screws. Buffer capacity is five.
+
+| Plate | Layer | Owned screws | Screws it blocks |
+| --- | --- | --- | --- |
+| blue_plate | 0 | B1 B2 B3 | None |
+| red_plate | 1 | R1 R2 R3 | B1 B2 B3 |
+| green_cap_a | 2 | G1 | R2 |
+| green_cap_b | 2 | G2 | R3 |
+| green_spare | 2 | G3 | None |
+| yellow_plate | 2 | Y1 Y2 Y3 | None |
+
+Initially R1, G1, G2, G3, Y1, Y2, and Y3 are exposed. Removing G1 exposes R2; removing G2 exposes R3. Removing all red screws clears their shared plate and exposes the blue screws.
+
+### 22.2 A verified solution
+
+```text
+G1, R2, G2, R3, R1, G3, Y1, Y2, Y3, B1, B2, B3
+```
+
+G1 and G2 wait temporarily while the red screws become accessible. R1 completes red and releases the red plate. Green then activates and consumes the two waiting green screws. G3 completes green, yellow activates, and the remaining colors finish. Peak buffer use on this route is two.
+
+### 22.3 A teachable fork
+
+First play G3, Y1, Y2, G1, R1, R2. Red is now 2/3, blue is 0/3, and the ordered buffer is G3, Y1, Y2, G1. The two legal exposed choices are G2 and Y3.
+
+| Choice | Result after settling |
+| --- | --- |
+| Choose Y3 | Buffer becomes full; R3 is still covered; G2 has no destination; the state is STUCK |
+| Undo once and choose G2 | Buffer becomes full, but R3 is now exposed and can enter red; the state remains ACTIVE |
+| Then choose R3 | Red completes; green activates and drains G3 G1 G2; green completes; yellow activates and drains Y1 Y2 |
+| Finish Y3 B1 B2 B3 | Yellow and blue complete; the board and buffer are empty; the state is WON |
+
+This is why checking only buffer occupancy produces the wrong result. The two fork choices both use the fifth slot, but only one opens immediate progress. It also tests skipping ineligible yellow entries while transferring green, two box completions in one move, and restoring a whole transaction snapshot.
+
+### 22.4 Scope of validation
+
+The included Python reference validator checks the abstract fixture's routes, conservation, fixed-point transfers, the stuck fork, snapshot restoration, and the legal full-buffer continuation. Search on this small abstract model establishes no solution under buffer limits zero or one and finds one under two. The minimum applies only to this fixture under these rules.
+
+This is not a tested Godot game or a completed phone layout. The same fixture and expected states must be replayed by the production GDScript reducer. Geometry, hit targets, animation cancellation, real save recovery, and mobile performance require their own implementation checks. The 30-level brief file contains inventory plans, not thirty solver-certified playable boards.
+
+## 23 Build milestones and release gates
+
+### 23.1 First concrete milestone
+
+The first one-to-two-day target is a graybox Android puzzle that loads data, accepts a legal screw tap, fills and replaces boxes, releases plates, supports a complete undo, and passes the twelve-screw fixture. Use circles, polygons, and temporary sound placeholders. The result should be playable, not a collection of isolated classes.
+
+- Create the pinned Godot project and a reproducible Android export.
+- Load a six-screw tutorial and the twelve-screw abstract fixture through the agreed definitions.
+- Implement the pure reducer, state invariants, and one complete scene with two boxes and five buffer spaces.
+- Show direct routing, plate release, buffer transfers, victory, and stuck states.
+- Implement snapshot undo and deterministic restart.
+- Run the documented trap and recovery on the actual reducer.
+- Record what was executed on desktop and on a physical phone.
+
+The likely pitfall is evaluating loss before the box-and-buffer cascade finishes, or restoring only part of that cascade with Undo. Keep the reducer synchronous and test the documented full-buffer branch before adding more content.
+
+### 23.2 Production sequence
+
+| Milestone | Main output | Exit evidence |
+| --- | --- | --- |
+| M0 Project and contracts | Engine pin, folder structure, schema, ruleset, Android export | Project opens cleanly and one scene runs on device |
+| M1 Coherent puzzle | Reducer, tutorial, reference fixture, undo, restart | Exact documented states and conservation checks pass |
+| M2 Five-level playable | Touch UI, box animation, plate release, result flow | New player can complete a short sequence on a phone |
+| M3 Reliable session | Save/resume, Blueprint, full queue, honest hints | Background and restore preserve state and history |
+| M4 Ten-level vertical slice | Final art sample, sounds, tutorials, first album groups | Usability review identifies no core-rule misunderstanding |
+| M5 Thirty-level alpha | Authored content, collection, first-clear economy | Every level has a passing production witness and readable geometry |
+| M6 Release candidate | Device matrix, performance, recovery and packaging | No critical gameplay or persistence defect in the declared test set |
+| M7 Optional service experiment | Selected analytics or monetization | Separate SDK, reward, privacy, and interruption checks pass |
+
+These are dependency gates, not a promise that parallel agents can finish production in two days. A prepared developer may achieve the first graybox milestone in that time. Thirty reviewed levels, polished art, and device testing require additional work. Estimate each subsequent milestone after measuring actual content and integration throughput.
+
+### 23.3 Stop conditions
+
+Do not expand to 100 levels while the first ten remain confusing. Do not polish a large album while restore loses progress. Do not add physics obstacles while the static fixture disagrees with the reducer. At each gate, fix the concrete failing evidence and then continue.
+
+## 24 Specialist agent organization
+
+### 24.1 Ownership
+
+| Role | Owned deliverable and files | Handoff requirement |
+| --- | --- | --- |
+| Lead and game designer | Shared contracts, project.godot, root scenes, scope and integration | Resolve rule changes; maintain a running playable and decision log |
+| Godot gameplay developer | scripts/core and scripts/session | Deterministic reducer, state invariants, complete undo, replay evidence |
+| Level designer and tools developer | content/levels and tools/validation or tools/solver | Inventories, geometry, witness routes, difficulty review |
+| UI and UX developer | scenes/ui and scripts/ui | Responsive layout, input ownership, modal behavior, accessibility |
+| Art director and technical artist | assets, art catalog, presentation views | Original kit, pivots, footprints, consistent symbols, device readability |
+| Audio and motion specialist | audio assets and presentation configuration | Short coherent feedback, reduced motion, interruption-safe sound |
+| Platform and QA specialist | services, tests, export verification, device reports | Save recovery, lifecycle, actual device measurements, reproducible defects |
+
+Roles can be combined when the runtime has fewer concurrent agents. Do not invent agent execution. If delegation tools are unavailable, work through the same responsibilities sequentially and preserve their review gates.
+
+### 24.2 Parallel work order
+
+The lead first freezes the ruleset, IDs, scene interfaces, event schema, and folder ownership. Then gameplay can develop the reducer while UI builds components against sample state, art builds the approved kit, and the level designer writes data and witnesses. No agent changes shared constants independently.
+
+Integrate the first playable early. After the reducer exists, the level tools and QA tasks must use it rather than maintain a separate approximation. The Python fixture remains an external design reference; it must not evolve into an unreviewed second production rule engine.
+
+Before editing a shared file, coordinate ownership. Keep commits or handoffs small. Agents report changed files, decisions, actual checks, and unresolved issues. A reviewer should be able to run the same command or replay and see the same result.
+
+### 24.3 Required project documents
+
+Maintain a concise rules contract, level schema, event contract, asset manifest, milestone checklist, and known-issues list in the project's existing documentation convention. Treat this specification as the initial authority and record later accepted changes. Do not silently replace it with a new design during implementation.
+
+## 25 Master prompt for the implementation team
+
+The following prompt is also supplied separately in the agent pack.
+
+```text
+You are the implementation lead for Project Screwcraft, an original
+portrait mobile screw-sorting puzzle built in Godot with typed GDScript.
+Read the attached development specification and agent-pack files first.
+Use their rules as the initial authority. Research sections describe
+references; proposed sections define the game we are building.
+
+Begin implementation, not another broad brainstorming document.
+Inspect the working environment and any existing project instructions.
+Use Godot 4.7.2 Standard and matching templates as the documented
+baseline; verify availability and record any necessary version change.
+Keep Android first, portrait, offline gameplay, and 2D rule logic with
+illustrated depth. Use original assets or clearly marked placeholders.
+
+Assign specialist responsibilities for gameplay, level design, UI/UX,
+art and motion, audio, and QA/platform work. Delegate when tools allow
+and respect the actual concurrency limit. Otherwise perform the roles
+sequentially. Give each agent bounded file ownership and acceptance
+criteria. The lead owns shared contracts and integration.
+
+Freeze classic_sort_v1: two active boxes of three screws, five buffer
+spaces, two visible previews with free full-queue inspection, fixed
+authored queue, and explicit plate blockers. Direct matches bypass a
+full buffer. Settle every box replacement and eligible FIFO transfer
+before evaluating status. Full buffer alone never means failure.
+Undo restores the entire previous accepted transaction. Animation and
+physics never determine logical access, destinations, or solvability.
+
+Use immutable level definitions and a pure synchronous reducer.
+Keep GameSession, views, animation, persistence, and platform services
+separate. Export designer-facing configuration, use reusable scenes,
+stable IDs, clear functions, typed data, and explicit signal contracts.
+Protect asynchronous animation and hint callbacks with session epochs
+and transaction or state identities.
+
+First deliver a working graybox and run the supplied 12-screw fixture
+through the real Godot reducer. Verify direct routing, full-buffer
+continuation, the stuck fork, two-box cascade, conservation, and full
+undo. Produce an Android test build early. Then complete five levels,
+save/resume and inspection, the ten-level vertical slice, and the
+30-level alpha in the specified dependency order.
+
+The level_briefs file is an authoring plan. Supply the missing queue,
+geometry, witnesses, and human review before calling a level complete.
+Use the same reducer for search and gameplay. A bounded search returns
+UNKNOWN_LIMIT, never a fabricated impossibility result or winning hint.
+Every shipped standard level must have a proven no-purchase solution.
+
+The first build has free Undo, Restart, Blueprint, and queue inspection;
+honest hints; no energy or timer; and no active ad or purchase SDK.
+Use the selected five-level album groups, 20 first-clear cosmetic coins,
+and 100-coin basic cosmetics as initial tuning values. First-clear
+rewards are granted once per stable level ID across normal revisions.
+
+Create a running integrated build at each milestone. Report what
+changed, why, actual commands or replays executed, and material
+limitations. Do not claim a test ran if the engine or device was
+unavailable. Distinguish reference-model validation from GDScript,
+visual, and physical-device verification. Fix concrete blockers before
+expanding scope. Keep external release and paid service activation
+separate from creating a reviewable working project.
+```
+
+### 25.1 Expected milestone report
+
+Each implementation report should identify the playable result, changed files, accepted contract changes, executed tests, current defects, and the next smallest dependency-complete task. Include a screenshot or brief recording when a visual result was actually inspected. A list of scripts created without a runnable flow does not complete a milestone.
+
+## 26 Risks and definition of done
+
+### 26.1 Principal risks
+
+| Risk | Consequence | Prevention |
+| --- | --- | --- |
+| Logic mixed with animations | Timing changes alter puzzle outcomes | Pure reducer and model-first commits |
+| Fake solvability from total counts | Some colors cannot fill their boxes | Per-color quotas and production witness replay |
+| Partial undo | Box queue and board disagree | Complete snapshots and canonical state comparison |
+| Geometry contradicts blockers | Players cannot understand legal taps | Footprint validation and phone review |
+| Shared Resource mutation | Another attempt or level inherits changes | Immutable definitions and fresh mutable state |
+| Stale callbacks | Old attempt changes current UI or rewards | Epoch checks and durable service grants |
+| Overloaded first release | Core remains unfinished | Milestone gates and small reusable asset kit |
+| Treating engagement as a promise | Balance decisions lack evidence | Observe comprehension, voluntary replay, and actual exits |
+
+### 26.2 Thirty-level build completion
+
+The 30-level build is complete only when it opens in the pinned engine, exports for the declared Android test devices, and provides the full campaign loop with original or approved assets. All thirty levels have valid definitions, conserved color inventories, correct visible blockers, comfortable touch targets, and passing solution witnesses through the actual reducer.
+
+The full-buffer fixture, cascade undo, deterministic restart, save/resume, rewards, settings, inspection, and supported-device layout tests must pass. New players should understand the first lessons without a developer explaining them. Critical defects in state integrity, input, or persistence must be resolved before expansion.
+
+The delivered research and design pack does not itself satisfy that build gate. It supplies a concrete specification, reference diagrams, a tested abstract model, and the evidence needed to begin implementation with fewer ambiguous decisions.
+
+## 27 Sources and evidence register
+
+Research date is 8 October 2026. Store descriptions and promotional images are evidence of advertised presentation and features. Official help describes documented competitor rules, which may differ from a current binary. Reviews are anecdotal. The original game's architecture, balancing, progression, art direction, and test targets are proposed decisions.
+
+### 27.1 Game research
+
+R1. Woodle Screw Pin Nuts and Bolts, Google Play listing and visible reviews. Package com.wood.bolt.wordle.screw.nuts.puzzle. https://play.google.com/store/apps/details?id=com.wood.bolt.wordle.screw.nuts.puzzle&hl=en_IN
+
+R2. Woodle Screw Pin Nuts and Bolts, Apple App Store listing. https://apps.apple.com/us/app/woodle-screw-pin-nuts-bolts/id6642698438
+
+R3. Woodle Google Play promotional screenshot showing curved wooden layers, four cases, and five holes. Screenshot 11 on R1. https://play-lh.googleusercontent.com/UOdYnX9MjrKToy4bpKT3HrVhlLPicJJjYGTEN10LXv_IAH2QyAPRpp5DwVRrrDzJ8GPkaOqfShxZZpm2yQr4=w1080
+
+R4. Woodle Google Play promotional screenshot showing a circular floral board. Screenshot 12 on R1. https://play-lh.googleusercontent.com/W40le-CbQrva8Es9d_cMn60aMSwJisPmcr45zP5xEYNljMw6p6BEu_eGGRa0xPMwT4RjVn_m7OuH66oTjnyYQEU=w1080
+
+R5. Rollic Screw Jam official help, How to play Screw Jam. https://rollic.helpshift.com/hc/en/10-screw-jam/faq/255-how-to-play-screw-jam/
+
+R6. Rollic Screw Jam official help, My Slots are Full but There is a Screw I Can Put in the Toolbox. https://rollic.helpshift.com/hc/en/10-screw-jam/faq/391-my-slots-are-full-but-there-is-a-screw-i-can-put-in-the-toolbox/
+
+R7. Screwdom 3D, Google Play listing and promotional images. https://play.google.com/store/apps/details?id=com.ig.screwdom&hl=en_IN
+
+R8. ABI Wood Nuts and Bolts Puzzle, Apple App Store description. https://apps.apple.com/us/app/wood-nuts-bolts-puzzle/id6472426288
+
+R9. FALCON Screw Puzzle Wood Nut and Bolt, Google Play listing and inspected promotional images. https://play.google.com/store/apps/details?id=com.fc.nut.screw.bolt.washer.fastener.puzzle&hl=en_IN
+
+R10. Rollic Screw Jam official help, What are the Obstacles. https://rollic.helpshift.com/hc/en/10-screw-jam/faq/561-what-are-the-obstacles/
+
+R11. Rollic Screw Jam official help, What are the Power-ups and Boosters. https://rollic.helpshift.com/hc/en/10-screw-jam/faq/256-what-are-the-power-ups-boosters/
+
+R12. Screw Jam, Google Play listing and promotional images. https://play.google.com/store/apps/details?id=com.quok.screwJam&hl=en_IN
+
+### 27.2 Engineering references
+
+T1. Godot official download archive and 4.7.2 stable release. https://godotengine.org/download/archive/4.7.2-stable/
+
+T2. Godot overview of renderers. https://docs.godotengine.org/en/stable/tutorials/rendering/renderers.html
+
+T3. Godot Resource reference. https://docs.godotengine.org/en/stable/classes/class_resource.html
+
+T4. Godot input propagation and InputEvent. https://docs.godotengine.org/en/4.7/tutorials/inputs/inputevent.html
+
+T5. Godot multiple resolutions. https://docs.godotengine.org/en/4.7/tutorials/rendering/multiple_resolutions.html
+
+T6. Godot DisplayServer and display safe area. https://docs.godotengine.org/en/4.7/classes/class_displayserver.html
+
+T7. Godot FileAccess. https://docs.godotengine.org/en/stable/classes/class_fileaccess.html
+
+T8. Godot DirAccess. https://docs.godotengine.org/en/4.7/classes/class_diraccess.html
+
+T9. Godot general optimization guidance. https://docs.godotengine.org/en/4.7/tutorials/performance/general_optimization.html
+
+T10. Godot Android export guide. https://docs.godotengine.org/en/stable/tutorials/export/exporting_for_android.html
+
+T11. Google Play target API requirements. https://support.google.com/googleplay/android-developer/answer/11926878?hl=en
+
+T12. Android 16 KB memory page support. https://developer.android.com/guide/practices/page-sizes
+
+T13. Google Mobile Ads rewarded advertising guidance. https://developers.google.com/admob/android/rewarded
+
+### 27.3 Validation materials
+
+The agent pack includes DEVELOPMENT_SPECIFICATION.txt, START_HERE.txt, level_briefs.json, fixture_12_screws.json, validate_fixture.py, README_fixture.txt, and original SVG and PNG diagrams. The validator's run report records the actual checked abstract states. All other implementation, performance, playtesting, and commercial outcomes remain development work governed by the gates above.
+

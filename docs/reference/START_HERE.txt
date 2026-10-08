@@ -1,0 +1,77 @@
+PROJECT SCREWCRAFT AGENT HANDOFF
+
+Read DEVELOPMENT_SPECIFICATION.txt, then use the implementation prompt below.
+The JSON briefs are content plans, not finished levels. The fixture validates
+an abstract Python model, not Godot or mobile behavior.
+
+Files
+- DEVELOPMENT_SPECIFICATION.txt: complete research and production specification.
+- level_briefs.json: 30 conserved inventories and authoring briefs.
+- fixture_12_screws.json: precise abstract rule example and expected states.
+- validate_fixture.py: standard-library Python reference validator.
+- README_fixture.txt: usage and validation limits.
+- VALIDATION_REPORT.txt: actual reference-model check output.
+- diagrams/: original SVG and PNG UI and transaction schematics.
+
+IMPLEMENTATION PROMPT
+
+You are the implementation lead for Project Screwcraft, an original
+portrait mobile screw-sorting puzzle built in Godot with typed GDScript.
+Read the attached development specification and agent-pack files first.
+Use their rules as the initial authority. Research sections describe
+references; proposed sections define the game we are building.
+
+Begin implementation, not another broad brainstorming document.
+Inspect the working environment and any existing project instructions.
+Use Godot 4.7.2 Standard and matching templates as the documented
+baseline; verify availability and record any necessary version change.
+Keep Android first, portrait, offline gameplay, and 2D rule logic with
+illustrated depth. Use original assets or clearly marked placeholders.
+
+Assign specialist responsibilities for gameplay, level design, UI/UX,
+art and motion, audio, and QA/platform work. Delegate when tools allow
+and respect the actual concurrency limit. Otherwise perform the roles
+sequentially. Give each agent bounded file ownership and acceptance
+criteria. The lead owns shared contracts and integration.
+
+Freeze classic_sort_v1: two active boxes of three screws, five buffer
+spaces, two visible previews with free full-queue inspection, fixed
+authored queue, and explicit plate blockers. Direct matches bypass a
+full buffer. Settle every box replacement and eligible FIFO transfer
+before evaluating status. Full buffer alone never means failure.
+Undo restores the entire previous accepted transaction. Animation and
+physics never determine logical access, destinations, or solvability.
+
+Use immutable level definitions and a pure synchronous reducer.
+Keep GameSession, views, animation, persistence, and platform services
+separate. Export designer-facing configuration, use reusable scenes,
+stable IDs, clear functions, typed data, and explicit signal contracts.
+Protect asynchronous animation and hint callbacks with session epochs
+and transaction or state identities.
+
+First deliver a working graybox and run the supplied 12-screw fixture
+through the real Godot reducer. Verify direct routing, full-buffer
+continuation, the stuck fork, two-box cascade, conservation, and full
+undo. Produce an Android test build early. Then complete five levels,
+save/resume and inspection, the ten-level vertical slice, and the
+30-level alpha in the specified dependency order.
+
+The level_briefs file is an authoring plan. Supply the missing queue,
+geometry, witnesses, and human review before calling a level complete.
+Use the same reducer for search and gameplay. A bounded search returns
+UNKNOWN_LIMIT, never a fabricated impossibility result or winning hint.
+Every shipped standard level must have a proven no-purchase solution.
+
+The first build has free Undo, Restart, Blueprint, and queue inspection;
+honest hints; no energy or timer; and no active ad or purchase SDK.
+Use the selected five-level album groups, 20 first-clear cosmetic coins,
+and 100-coin basic cosmetics as initial tuning values. First-clear
+rewards are granted once per stable level ID across normal revisions.
+
+Create a running integrated build at each milestone. Report what
+changed, why, actual commands or replays executed, and material
+limitations. Do not claim a test ran if the engine or device was
+unavailable. Distinguish reference-model validation from GDScript,
+visual, and physical-device verification. Fix concrete blockers before
+expanding scope. Keep external release and paid service activation
+separate from creating a reviewable working project.

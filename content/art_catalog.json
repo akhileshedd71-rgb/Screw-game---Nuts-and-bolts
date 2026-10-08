@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "board_reference_size": [
+    640,
+    600
+  ],
+  "materials": [
+    "beech",
+    "honey",
+    "walnut",
+    "ivory"
+  ],
+  "families": [
+    {
+      "id": "flower",
+      "title": "Petal studio",
+      "album_group_size": 5
+    },
+    {
+      "id": "sailboat",
+      "title": "Little harbor",
+      "album_group_size": 5
+    },
+    {
+      "id": "bird",
+      "title": "Feather collection",
+      "album_group_size": 5
+    },
+    {
+      "id": "windmill",
+      "title": "Wind garden",
+      "album_group_size": 5
+    },
+    {
+      "id": "butterfly",
+      "title": "Butterfly meadow",
+      "album_group_size": 5
+    },
+    {
+      "id": "house",
+      "title": "Cozy village",
+      "album_group_size": 5
+    },
+    {
+      "id": "lantern",
+      "title": "Lantern night",
+      "album_group_size": 5
+    },
+    {
+      "id": "signpost",
+      "title": "Woodland trail",
+      "album_group_size": 5
+    },
+    {
+      "id": "star",
+      "title": "Starlight workshop",
+      "album_group_size": 5
+    },
+    {
+      "id": "tree",
+      "title": "Orchard morning",
+      "album_group_size": 5
+    },
+    {
+      "id": "fish",
+      "title": "Coral cove",
+      "album_group_size": 5
+    },
+    {
+      "id": "keepsake",
+      "title": "Keepsake shelf",
+      "album_group_size": 5
+    }
+  ],
+  "palette": {
+    "red": "#DB6066",
+    "blue": "#568BD2",
+    "green": "#719A68",
+    "yellow": "#E4B544",
+    "purple": "#9D7AC2",
+    "teal": "#48A5A0"
+  }
+}

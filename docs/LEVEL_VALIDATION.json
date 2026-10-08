@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "geometry_validation": "PASS",
+  "level_count": 1000,
+  "screw_count": 20385,
+  "unique_content_hashes": 1000,
+  "topology_descriptor_count": 606,
+  "family_counts": {
+    "bird": 85,
+    "butterfly": 85,
+    "fish": 80,
+    "flower": 81,
+    "house": 86,
+    "keepsake": 83,
+    "lantern": 85,
+    "sailboat": 82,
+    "signpost": 87,
+    "star": 80,
+    "tree": 80,
+    "windmill": 86
+  },
+  "screw_count_distribution": {
+    "6": 2,
+    "9": 1,
+    "12": 35,
+    "15": 147,
+    "18": 247,
+    "21": 256,
+    "24": 193,
+    "27": 95,
+    "30": 24
+  },
+  "layer_count_distribution": {
+    "1": 1,
+    "2": 428,
+    "3": 520,
+    "4": 51
+  },
+  "witness_peak_buffer_distribution": {
+    "0": 3,
+    "1": 202,
+    "2": 400,
+    "3": 213,
+    "4": 182
+  },
+  "first_30_exact_color_inventories": true,
+  "fixture_L08_preserves_abstract_graph": true,
+  "guarantees": [
+    "finite fixed queues",
+    "stable IDs and content hashes",
+    "all screw ownership and color quotas",
+    "heads fit owners by >=28 logical pixels",
+    "all visual covers agree with declared blockers",
+    "no partly obscured exposed heads",
+    "potentially concurrent head centers >=58 logical pixels",
+    "witness removes geometrically exposed screws only"
+  ],
+  "separate_required_checks": [
+    "Godot reducer witness replay (tests/test_reducer.gd)",
+    "human playtesting",
+    "physical Android touch and readability"
+  ],
+  "human_playtest_verified": false,
+  "errors": []
+}

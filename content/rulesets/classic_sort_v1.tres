@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="RulesetData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ruleset_data.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+ruleset_id = &"classic_sort_v1"
+ruleset_revision = 1
+active_box_slots = 2
+box_capacity = 3
+buffer_capacity = 5
+queue_preview_count = 2
