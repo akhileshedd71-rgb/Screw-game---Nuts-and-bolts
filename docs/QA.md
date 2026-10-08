@@ -32,9 +32,26 @@ Desktop development needs Godot only. Exporting Android also requires Java 21 (t
 | Geometry negative controls | Four deliberate defects rejected: off-board anchor, missing visual blocker, overlapping exposed targets, wrong color quota |
 | Native Linux exported build | Started the packaged executable headlessly for 120 frames without engine errors |
 | Android APK integrity | APK signing schemes v2/v3, 16KB native-page ZIP alignment, package identity and VIBRATE permission verified |
-| Rendered browser interaction | Seven checks pass with zero engine/browser errors: actual pointer/touch input, visual Undo restoration, persisted move after runtime reload, and result controls after Collection → Workshop → Continue |
+| Rendered browser interaction | Twelve checks pass with zero engine/browser errors: actual pressed appearance, pointer/touch input, Undo restoration, persisted move after reload, result navigation, final campaign page and read-only Blueprint |
 
-Browser checks ran in Chromium with software WebGL at 720×1280 and a 360×800 mobile viewport using actual touch events. Screenshots include the first puzzle, victory, collection, workshop, level two, catalogue page 40, level 1,000, Blueprint, and settings. `node tools/web_smoke.cjs` reproduces this against a served Web export; `builds/reports/web-smoke.json` records the outcome. Viewport emulation is not physical-device testing.
+Browser checks ran in Chromium with software WebGL at 720×1280, a 360×800 phone viewport, and a 768×1024 tablet viewport using actual touch events. Screenshots include the first puzzle, victory, collection, workshop, level two, catalogue page 40, level 1,000, Blueprint, and settings. `node tools/web_smoke.cjs` reproduces this against a served Web export; `builds/reports/web-smoke.json` records the outcome. Viewport emulation is not physical-device testing.
+
+## Reproduce the Toybox Workshop visual review
+
+The capture harness instantiates the actual `scenes/main.tscn` and navigates through real session and UI callbacks. It captures puzzle 1, puzzle 8, puzzle 1,000, queue, settings, help, Blueprint, victory, home, the first and final level-map pages, collection, finishes, and the documented stuck fork. Every capture run uses a disposable profile under `/tmp`, so it cannot change a player's progress.
+
+```bash
+# Supply an available graphical X11 display (the prepared cloud display is :91).
+DISPLAY=:91 ./tools/capture_redesign.sh
+# Then build the Web export and serve builds/web through HTTP at localhost:8765.
+node tools/web_smoke.cjs
+```
+
+The native screenshots cover 720×1280, a 360×800 phone window, and a 768×1024 tablet window. They capture the presented X11 window at its physical pixel size, rather than an enlarged internal Godot render texture. `builds/reports/redesign/capture-720x1280.json` records actual native button rectangles; the browser test uses this geometry to click the rendered controls. Thus layout changes do not require approximate browser coordinates for menus. Screw taps still target the stored level's real anchors. Browser tests additionally exercise real touchscreen events on phone and tablet viewports, verify whole-board Undo restoration and reload persistence, and reject Web runtime errors.
+
+The final review captured **42 actual game screens** across these three sizes. Review found and corrected a disappearing Home scenery texture, crowded paint-shop rows, excessive empty queue-popup space, the Undo arrow direction, and black letterboxing on phone/tablet aspect ratios. The final captures retain readable headings and controls, consistent color/shape identities, and all button rectangles inside the portrait canvas. The complete existing 80-assertion semantic UI suite passed after the presentation-timing changes. Reduced motion retains instant committed-state presentation without screw flights or large victory confetti.
+
+Curated final screenshots are committed under `docs/screenshots/`: gameplay, puzzle 1,000, the illustrated workshop, progression trail, paint shop, victory, phone, and tablet. Generated capture manifests and all 42 full-size screenshots remain under `builds/reports/redesign/`. Rebuilt Android, Linux, and Web exports include the new original artwork, fonts, audio, launcher icon, and aspect handling. The Android development package passes v2/v3 signature verification and 16KB native-page ZIP alignment; the packaged Linux executable starts cleanly for 120 headless frames.
 
 The fixture tests compare the supplied independent golden states, including FIFO order, full buffer with a legal direct match, a double cascade, wrong fork into STUCK, recovery, and terminal victory. They also check pure reducer inputs, duplicate command rejection, invalid content, canonical buffer ordering, honest solver budget exhaustion, and replay of a solver-generated continuation from the current state. JSON numeric types are normalized for golden comparisons; screw/container order remains significant.
 

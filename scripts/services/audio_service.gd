@@ -48,7 +48,10 @@ func _ready() -> void:
 func play(event: String) -> void:
 	if not sound_enabled or _suspended or _voices.is_empty():
 		return
-	var key: String = {"extract": "tap", "wood": "release", "victory": "win", "seat": "click"}.get(event, event)
+	var key: String = {
+		"extract": "tap", "wood": "release", "victory": "win",
+		"seat": "click", "button": "click", "ui": "click",
+	}.get(event, event)
 	if not SOUNDS.has(key):
 		return
 	var now: int = Time.get_ticks_msec()

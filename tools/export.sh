@@ -7,7 +7,7 @@ touch builds/.gdignore
 ./tools/godot.sh --headless --path . --export-release Linux builds/linux/Screwcraft.x86_64
 ./tools/godot.sh --headless --path . --export-release Web builds/web/index.html
 if [[ "${1:-}" == "--android" ]]; then
-  SDK_PATH="${ANDROID_HOME:-/workspace/.tools/android-sdk}"
+  SDK_PATH="${ANDROID_HOME:-${SCREWCRAFT_TOOL_ROOT:-/workspace/.tools}/android-sdk}"
   if [[ ! -f "$SDK_PATH/debug.keystore" ]]; then
     keytool -genkeypair -keystore "$SDK_PATH/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname 'CN=Android Debug,O=Android,C=US' -keyalg RSA -keysize 2048 -validity 10000
   fi

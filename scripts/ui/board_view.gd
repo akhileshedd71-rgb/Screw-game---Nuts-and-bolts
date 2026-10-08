@@ -8,11 +8,12 @@ signal presentation_finished
 const Art = preload("res://scripts/ui/craft_draw.gd")
 const Reducer = preload("res://scripts/core/puzzle_reducer.gd")
 const RELEASE_DURATION := 0.38
+# These persisted IDs intentionally survive the Toybox Workshop art update.
 const PALETTES := {
-	"beech": [Color("dab27a"),Color("ebd1a0"),Color("c49360"),Color("efdcb6")],
-	"walnut": [Color("986944"),Color("bd956a"),Color("80573e"),Color("d2b185")],
-	"rose": [Color("cf9f8e"),Color("e5bfa8"),Color("b98170"),Color("edd7bf")],
-	"sage": [Color("a9b28d"),Color("cbd0ad"),Color("91a082"),Color("dfd9b7")]
+	"beech": [Color("ffe09a"),Color("a7e8ed"),Color("c7aff1"),Color("ffbbd4")],
+	"walnut": [Color("ba96ed"),Color("d1b9f8"),Color("eca8d9"),Color("afddeb")],
+	"rose": [Color("ffaecd"),Color("ffd0e1"),Color("e5b9f1"),Color("ffd2b6")],
+	"sage": [Color("97e7e9"),Color("b0f0df"),Color("a8d5f8"),Color("fff0b4")]
 }
 
 var input_enabled: bool = true
@@ -192,74 +193,114 @@ func _draw() -> void:
 		Art.screw(self,p,str(flight.color_id),24.0*(1.0+sin(progress*PI)*0.18),opacity,progress*PI*1.7)
 		for i in range(5):
 			var vector := Vector2.from_angle(TAU*i/5.0-PI*0.5)
-			draw_circle(p+vector*(20+progress*35),maxf(0.5,2.0*(1-progress)),Color(0.90,0.71,0.34,opacity*0.8),true,-1,true)
+			draw_circle(p+vector*(20+progress*35),maxf(0.5,2.0*(1-progress)),Color(1.0,0.77,0.23,opacity*0.8),true,-1,true)
 
 func _draw_backing() -> void:
-	var bounds := Rect2(4,4,632,588)
-	Art.rounded(self,Rect2(4,10,632,588),Color(0.21,0.24,0.18,0.12),30)
-	Art.rounded(self,bounds,Color("d0b588"),30)
-	Art.rounded(self,Rect2(6,5,628,582),Color("e9d9b9"),29)
-	Art.rounded(self,Rect2(10,9,620,574),Color("efdfbf"),26,Color("f5e9ce"),1)
-	Art.rounded(self,Rect2(16,15,608,563),Color("edddbd"),22,Color(0.61,0.44,0.24,0.12),1)
-	for i in range(24):
-		var points := PackedVector2Array()
-		for j in range(45):
-			var y := 26+j*12.2
-			var x := 26+i*25+sin(y*0.012+i*1.1)*5.5+sin(y*0.037+i*2.7)*1.0
-			points.append(Vector2(x,y))
-		draw_polyline(points,Color(0.49,0.34,0.16,0.037),1.0,true)
+	# A layered, bevelled toy tray frames a quiet play surface; decoration stays at the edge.
+	Art.rounded(self,Rect2(4,13,632,585),Color(0.17,0.09,0.31,0.18),34)
+	Art.rounded(self,Rect2(3,4,634,586),Color("513180"),34)
+	Art.rounded(self,Rect2(5,3,630,578),Color("8051c7"),32)
+	Art.rounded(self,Rect2(9,5,622,565),Color("b997f2"),29)
+	Art.rounded(self,Rect2(14,9,612,555),Color("dfc8ff"),26)
+	Art.rounded(self,Rect2(20,15,600,545),Color("8d62c5"),23)
+	Art.rounded(self,Rect2(24,19,592,537),Color("d8c9ed"),20)
+	Art.rounded(self,Rect2(27,24,586,527),Color("f5efff"),18)
+	Art.rounded(self,Rect2(30,30,580,517),Color("f7f4ff"),16)
+	# Subtle embossed polka dots and seams suggest a padded workshop play mat.
+	for row in range(12):
+		for column in range(13):
+			var p := Vector2(48+column*45+(22 if row%2 else 0),47+row*42)
+			if p.x < 597:
+				draw_circle(p,1.5,Color(0.63,0.48,0.81,0.075),true,-1,true)
+	for x in range(57,598,19):
+		draw_line(Vector2(x,37),Vector2(x+7,37),Color(0.65,0.51,0.84,0.15),1,true)
+		draw_line(Vector2(x,539),Vector2(x+7,539),Color(0.65,0.51,0.84,0.15),1,true)
+	for y in range(57,527,19):
+		draw_line(Vector2(39,y),Vector2(39,y+7),Color(0.65,0.51,0.84,0.15),1,true)
+		draw_line(Vector2(601,y),Vector2(601,y+7),Color(0.65,0.51,0.84,0.15),1,true)
+	# Candy enamel corner stars and pinstripe trim unite this with the game's toy scenery.
+	for x in [48.0,592.0]:
+		for y in [27.0,549.0]:
+			Art.sparkle(self,Vector2(x,y+2),14.0,Color("674492"))
+			Art.sparkle(self,Vector2(x,y),12.0,Color("ffda70"))
+			Art.sparkle(self,Vector2(x-2,y-3),5.0,Color("fff4c4"))
+	for x in [250.0,320.0,390.0]:
+		draw_circle(Vector2(x,572),5.7,Color("5f389d"),true,-1,true)
+		draw_circle(Vector2(x,570),4.6,Color("64e2e8") if x != 320 else Color("ff99c4"),true,-1,true)
+		draw_circle(Vector2(x-1.0,568.8),1.7,Color("ffffff"),true,-1,true)
+	for side in [0,1]:
+		var x := 14.0 if side == 0 else 626.0
+		for y in [141.0,288.0,435.0]:
+			draw_circle(Vector2(x,y),4.8,Color("dfc8ff"),true,-1,true)
+			draw_circle(Vector2(x,y-1),2.6,Color("f9f0ff"),true,-1,true)
 	var family := str(_level.get("family","flower"))
-	Art.motif(self,Vector2(320,286),family,117,Color(0.55,0.40,0.22,0.09))
-	for point in [Vector2(30,29),Vector2(610,29),Vector2(30,561),Vector2(610,561)]:
-		draw_circle(point,3,Color(0.66,0.51,0.30,0.26),true,-1,true)
-		draw_circle(point+Vector2(0,-0.8),1.5,Color(1.0,0.96,0.80,0.7),true,-1,true)
+	Art.motif(self,Vector2(320,282),family,112,Color(0.65,0.52,0.82,0.095))
 	if _state.get("status", "") == "WON":
-		Art.motif(self,Vector2(320,285),family,124,Color("748d65"))
-		draw_arc(Vector2(320,285),168,0,TAU,100,Color(0.44,0.56,0.37,0.22),2,true)
+		draw_circle(Vector2(320,283),136,Color("e5d5fc"),true,-1,true)
+		draw_circle(Vector2(320,276),126,Color("ffffff"),true,-1,true)
+		Art.motif(self,Vector2(320,276),family,93,Color("9c67d9"))
+		for i in range(8):
+			var at := Vector2(320,276)+Vector2.from_angle(TAU*i/8.0)*159
+			Art.sparkle(self,at,10 if i%2 else 15,Color("ef80b4") if i%2 else Color("fbc956"),PI*0.16*i)
 
 func _draw_plate(plate: Dictionary, cache: Dictionary, opacity: float) -> void:
 	var polygon: PackedVector2Array = cache.polygon
 	var inset: PackedVector2Array = cache.inset
 	var colors: Array = PALETTES.get(skin,PALETTES.beech)
 	var col: Color = colors[posmod(int(plate.get("material",0)),4)]
-	_draw_shifted_polygon(polygon,Vector2(2,12),Color(0.22,0.16,0.08,0.08*opacity))
-	_draw_shifted_polygon(polygon,Vector2(1,8),Color(0.29,0.21,0.12,0.12*opacity))
-	_draw_shifted_polygon(polygon,Vector2(0,4),_alpha(col.darkened(0.24),opacity))
+	var edge := col.darkened(0.45).lerp(Color("624277"),0.45)
+	_draw_shifted_polygon(polygon,Vector2(3,13),Color(0.22,0.12,0.37,0.07*opacity))
+	_draw_shifted_polygon(polygon,Vector2(2,10),Color(0.22,0.12,0.37,0.12*opacity))
+	_draw_shifted_polygon(polygon,Vector2(0,6),_alpha(edge,opacity))
+	_draw_shifted_polygon(polygon,Vector2(0,3.5),_alpha(col.darkened(0.21),opacity))
 	draw_colored_polygon(polygon,_alpha(col.darkened(0.10),opacity))
 	if inset.size() >= 3:
-		draw_colored_polygon(inset,_alpha(col.lightened(0.06),opacity))
-	for path in cache.grain:
-		draw_polyline(path,Color(0.36,0.23,0.10,0.075*opacity),1.1,true)
-	for pore in cache.pores:
-		draw_line(pore,pore+Vector2(2.4,0).rotated(cache.angle),Color(0.35,0.20,0.09,0.08*opacity),0.6,true)
+		draw_colored_polygon(inset,_alpha(col,opacity))
+	# Directional edge highlights are painted into the plate, not the model's geometry.
 	for i in range(polygon.size()):
 		var a := polygon[i]
 		var b := polygon[(i+1)%polygon.size()]
-		var edge := b-a
-		var highlight: bool = edge.x > 0.01 or (absf(edge.x)<0.01 and edge.y<0)
-		draw_line(a,b,Color(1,0.96,0.81,0.52*opacity) if highlight else Color(0.40,0.25,0.10,0.27*opacity),1.6,true)
+		var edge_vector := b-a
+		var highlight: bool = edge_vector.x > 0.01 or (absf(edge_vector.x)<0.01 and edge_vector.y<0)
+		draw_line(a,b,_alpha(col.lightened(0.70) if highlight else edge,opacity),2.4,true)
+	var outline := polygon.duplicate()
+	outline.append(polygon[0])
+	draw_polyline(outline,_alpha(edge,opacity*0.95),1.4,true)
 	if inset.size() >= 3:
-		var outline := inset.duplicate()
-		outline.append(inset[0])
-		draw_polyline(outline,Color(1,0.97,0.84,0.17*opacity),1.0,true)
+		var rim := inset.duplicate()
+		rim.append(inset[0])
+		draw_polyline(rim,_alpha(col.lightened(0.68),opacity*0.78),1.6,true)
+	# Fine inlaid ribbons replace wood grain; clipped paths remain well inside the true polygon.
+	var ribbon_index := 0
+	for path in cache.grain:
+		if ribbon_index%3 == 0:
+			draw_polyline(path,_alpha(col.lightened(0.58),opacity*0.24),2.5,true)
+		ribbon_index += 1
+	for accent in cache.accents:
+		Art.sparkle(self,accent+Vector2(0,1),7.3,_alpha(edge,opacity*0.20),0.18)
+		Art.sparkle(self,accent,6.3,_alpha(Color.WHITE,opacity*0.50),0.18)
 
 func _draw_hole(position: Vector2, opacity: float) -> void:
-	draw_circle(position+Vector2(0,1),10,Color(1,0.96,0.80,0.47*opacity),true,-1,true)
-	draw_circle(position,8,Color(0.40,0.27,0.14,0.65*opacity),true,-1,true)
-	draw_circle(position+Vector2(0,1),5.4,Color(0.24,0.18,0.11,0.64*opacity),true,-1,true)
-	draw_arc(position,8,PI,TAU,16,Color(0.32,0.22,0.12,0.24*opacity),1.5,true)
+	draw_circle(position+Vector2(0,1.5),11,Color(1,1,1,0.75*opacity),true,-1,true)
+	draw_circle(position,9.6,Color(0.32,0.20,0.49,0.7*opacity),true,-1,true)
+	draw_circle(position+Vector2(0,1.4),6.8,Color(0.47,0.32,0.61,0.58*opacity),true,-1,true)
+	draw_arc(position,8.8,PI,TAU,16,Color(0.24,0.14,0.36,0.4*opacity),2,true)
 
 func _draw_hint(position: Vector2) -> void:
 	var pulse := (sin(_clock*4.2)+1.0)*0.5 if not reduced_motion else 0.5
-	draw_circle(position,34.0+pulse*4.0,Color(1,1,0.93,0.45-pulse*0.15),true,-1,true)
-	draw_arc(position,31.0+pulse*3.0,0,TAU,48,Color("64805a"),2.5,true)
+	draw_circle(position,37.0+pulse*4.0,Color(1,0.80,0.29,0.20-pulse*0.07),true,-1,true)
+	draw_arc(position,32.0+pulse*3.0,0,TAU,48,Color("ffffff"),5.5,true)
+	draw_arc(position,33.5+pulse*3.0,0,TAU,48,Color("f4ad38"),2.5,true)
+	for i in range(3):
+		var p := position+Vector2.from_angle(-PI*0.60+TAU*i/3.0)*(41.0+pulse*4)
+		Art.sparkle(self,p,4.0+pulse*2,Color("ffd056"),_clock*0.2 if not reduced_motion else 0.0)
 
 func _draw_blueprint() -> void:
-	Art.rounded(self,Rect2(16,15,608,563),Color("e5eddf"),22)
+	Art.rounded(self,Rect2(16,15,608,563),Color("e9edff"),22)
 	for x in range(32,624,24):
-		draw_line(Vector2(x,24),Vector2(x,570),Color(0.35,0.48,0.36,0.055),1,true)
+		draw_line(Vector2(x,24),Vector2(x,570),Color(0.35,0.45,0.73,0.075),1,true)
 	for y in range(28,574,24):
-		draw_line(Vector2(24,y),Vector2(616,y),Color(0.35,0.48,0.36,0.055),1,true)
+		draw_line(Vector2(24,y),Vector2(616,y),Color(0.35,0.45,0.73,0.075),1,true)
 	for plate in _plates:
 		if str(plate.id) in _state.get("removed_plate_ids", []):
 			continue
@@ -267,17 +308,17 @@ func _draw_blueprint() -> void:
 		var polygon := PackedVector2Array()
 		for p in cache.polygon:
 			polygon.append(p+cache.center)
-		draw_colored_polygon(polygon,Color(0.50,0.63,0.46,0.07))
+		draw_colored_polygon(polygon,Color(0.49,0.53,0.81,0.08))
 		polygon.append(polygon[0])
-		draw_polyline(polygon,Color(0.35,0.48,0.36,0.40),2,true)
+		draw_polyline(polygon,Color(0.49,0.36,0.72,0.42),2,true)
 	for screw in _screws.values():
 		if not str(screw.id) in _state.get("remaining_screw_ids", []):
 			continue
 		var point: Vector2 = _blueprint_positions.get(str(screw.id),_point(screw.position))
 		var original := _point(screw.position)
 		if point.distance_to(original) > 8:
-			draw_line(original,point,Color(0.35,0.48,0.36,0.2),1.2,true)
-			draw_circle(original,3,Color(0.35,0.48,0.36,0.35),true,-1,true)
+			draw_line(original,point,Color(0.49,0.36,0.72,0.25),1.2,true)
+			draw_circle(original,3,Color(0.49,0.36,0.72,0.4),true,-1,true)
 		for blocker in screw.get("blocker_plate_ids", []):
 			if blocker in _state.get("removed_plate_ids", []) or not _cache.has(blocker):
 				continue
@@ -286,18 +327,18 @@ func _draw_blueprint() -> void:
 			var length := (target-point).length()
 			for step in range(int(length/10.0)):
 				var start := point+direction*step*10
-				draw_line(start,start+direction*5,Color(0.34,0.47,0.35,0.55),1.5,true)
-			Art.rounded(self,Rect2(target-Vector2(4,4),Vector2(8,8)),Color("668160"),2)
+				draw_line(start,start+direction*5,Color(0.47,0.29,0.68,0.65),1.5,true)
+			Art.rounded(self,Rect2(target-Vector2(4,4),Vector2(8,8)),Color("9567cf"),2)
 	for screw in _screws.values():
 		if not str(screw.id) in _state.get("remaining_screw_ids", []):
 			continue
 		var point: Vector2 = _blueprint_positions.get(str(screw.id),_point(screw.position))
 		var exposed := Reducer.is_exposed(_level,_state,str(screw.id))
-		draw_circle(point,27,Color(0.98,0.99,0.95,0.91),true,-1,true)
+		draw_circle(point,27,Color(1.0,0.99,1.0,0.96),true,-1,true)
 		Art.screw(self,point,str(screw.color_id),22,1.0,0.0,not exposed)
 		if not exposed:
-			Art.rounded(self,Rect2(point+Vector2(10,12),Vector2(18,18)),Color("e5eddf"),5)
-			Art.icon(self,point+Vector2(19,20),"lock",9,Color("526b50"))
+			Art.rounded(self,Rect2(point+Vector2(10,12),Vector2(18,18)),Color("e9edff"),5)
+			Art.icon(self,point+Vector2(19,20),"lock",9,Color("644690"))
 
 func _layout_blueprint() -> void:
 	# Separate coincident stack fasteners so inspection always reveals every identity.
@@ -385,7 +426,21 @@ func _make_plate_cache(plate: Dictionary) -> Dictionary:
 		var p := Vector2(lerpf(min_x,max_x,fposmod(i*0.618+seed_offset,1)),lerpf(min_y,max_y,fposmod(i*0.391+seed_offset,1))).rotated(angle)
 		if Geometry2D.is_point_in_polygon(p,inset):
 			pores.append(p)
-	return {"polygon":polygon,"inset":inset,"center":center,"angle":angle,"grain":grain,"pores":pores}
+	var accents: Array[Vector2] = []
+	for p in pores:
+		var clear := true
+		for direction in [Vector2.LEFT,Vector2.RIGHT,Vector2.UP,Vector2.DOWN]:
+			if not Geometry2D.is_point_in_polygon(p+direction*9,inset):
+				clear = false
+		for screw_id in plate.get("screw_ids", []):
+			if _screws.has(screw_id) and p.distance_to(_point(_screws[screw_id].position)-center) < 38:
+				clear = false
+		for previous in accents:
+			if p.distance_to(previous) < 65:
+				clear = false
+		if clear and accents.size() < 3:
+			accents.append(p)
+	return {"polygon":polygon,"inset":inset,"center":center,"angle":angle,"grain":grain,"pores":pores,"accents":accents}
 
 func _draw_shifted_polygon(polygon: PackedVector2Array, offset: Vector2, color: Color) -> void:
 	var shifted := PackedVector2Array()

@@ -31,7 +31,7 @@ func _check() -> void:
 	assert(AudioServer.get_bus_index("SFX") > 0)
 	assert(AudioServer.get_bus_index("UI") > 0)
 	assert(AudioServer.get_bus_volume_db(AudioServer.get_bus_index("Music")) == -24.0)
-	for path in ["res://assets/fonts/LMRoman10-Regular.otf", "res://assets/fonts/OpenSans-Regular.ttf", "res://assets/fonts/OpenSans-Semibold.ttf"]:
+	for path in ["res://assets/fonts/LilitaOne-Regular.ttf", "res://assets/fonts/Nunito-Regular.ttf", "res://assets/fonts/Nunito-ExtraBold.ttf"]:
 		assert(load(path) is FontFile)
 	print("AUDIO PASS: preloads, fonts, 6 voices, event coalescing, independent toggles, pause/resume, looping music, buses")
 	audio.set_enabled(false, false)

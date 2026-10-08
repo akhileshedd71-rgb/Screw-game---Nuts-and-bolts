@@ -1,9 +1,10 @@
 # Screwcraft: design decisions and review guide
 
-This is an original, offline craft puzzle for portrait phones. The player's job
-is to uncover a little wooden creation by sorting exposed screws into color and
-symbol matched boxes. The intended feeling is a quiet, tactile discovery, with
-room to experiment and recover. Enjoyment remains a playtesting question.
+This is an original, offline toy-making puzzle for portrait phones. The player's
+job is to reveal a playful creation by sorting exposed screws into color and
+symbol matched toolboxes. Cheerful illustrations and tactile feedback support
+a relaxed pace with room to experiment and recover. Enjoyment remains a
+playtesting question.
 
 ## Authority and scope
 
@@ -79,20 +80,25 @@ to find repetition, narrow forced sequences, and accidental difficulty spikes.
 
 ## Visual and interaction language
 
-A warm paper surface, honey-colored wood, dark ink, and sage details give the
-workshop a calm identity. Strong color belongs to screws and destinations. Color
-is always paired with a symbol: red circle, blue diamond, green triangle, yellow
-star, purple square, and teal bars. Shape does not introduce a second matching
-rule. Use a consistent upper-left highlight and soft contact shadows for depth.
+The Toybox Workshop redesign replaces the original muted workshop style with
+an illustrated toy-making adventure. Pip is an original golden fox-like maker
+with a pink forelock and aqua overalls. Bright pink, aqua, purple and warm yellow
+coordinate the toy village, carry-case destinations, lacquered pieces, dimensional
+buttons, paint shop and celebrations. A pearl-lavender mat keeps the gameplay
+area calm. Color is always paired with a symbol: red circle, blue diamond,
+green triangle, yellow star, purple square, and teal bars. Stable color IDs and
+symbols retain their rule meaning through every cosmetic finish.
 
-The headline typeface is Latin Modern Roman, paired with Open Sans for buttons,
-counts, and help. Small functional text stays in the sans serif. Avoid long
-all-capital passages. Active orders are larger and stronger than previews.
-Occupied buffer spaces must remain distinguishable from vacancies.
+Lilita One provides friendly chunky headings; Nunito Regular and ExtraBold
+handle instructions, counters and controls. All three fonts ship with licenses.
+Active toolboxes are larger and stronger than previews. Occupied holding spaces
+remain distinguishable from vacancies. The illustrated home, winding trail,
+collectible cabinet, paint-bottle shop and reward screen share the same world.
 
 At 720 × 1280 logical units, a 360 dp-wide display halves the logical dimensions.
-Consequently, a 64-unit diameter is only 32 dp. Current hit targets and spacing
-need physical phone review before claiming the specification's 48 dp target.
+Consequently, a 64-unit diameter is only 32 dp. Board picking uses a 48-unit
+radius and nearest-exposed-target disambiguation; major controls use 96 logical
+units. Physical phone review is still needed to establish actual touch comfort.
 Do not fix difficult taps by shrinking later screws or overlapping tap regions.
 Increase spacing, improve nearest-target selection, or recompose the board.
 
@@ -103,11 +109,11 @@ transitions. One modal owns input, and closing it returns to the same state.
 ## Audio identity
 
 All shipped sounds are original deterministic synthesis, with source in
-`assets/audio/generate_audio.py`. Short wooden clicks, a soft extraction accent,
-low wood releases, and felt mallet notes keep the identity coherent. Three small
+`assets/audio/generate_audio.py`. Rubbery button pops, gentle ratcheting turns,
+bouncy releases and box sparkles make the toy world tactile. Three small
 variations per common action avoid exact repetition without wild pitch changes.
-The victory phrase is brief and consonant. The optional 24-second ambience is a
-sparse original four-gesture miniature, mixed at −24 dB on its own Music bus.
+Pip's victory fanfare lasts 2.25 seconds. The optional 19.2-second original
+marimba-and-bell loop is mixed quietly on its own Music bus.
 
 `AudioService` has independent UI, SFX, and Music buses under Master. Sound and
 music settings are independent. A six-voice pool and 70 ms event coalescing keep

@@ -7,16 +7,20 @@ const Reducer = preload("res://scripts/core/puzzle_reducer.gd")
 const Board = preload("res://scripts/ui/board_view.gd")
 const Craft = preload("res://scripts/ui/craft_draw.gd")
 const Audio = preload("res://scripts/services/audio_service.gd")
-const SANS = preload("res://assets/fonts/OpenSans-Regular.ttf")
-const BOLD = preload("res://assets/fonts/OpenSans-Semibold.ttf")
-const SERIF = preload("res://assets/fonts/LMRoman10-Regular.otf")
-const PAPER = Color("f7f5ee")
-const INK = Color("2e4238")
-const MUTED = Color("788477")
-const GREEN = Color("426b54")
-const PALE = Color("e8ecdf")
-const LINE = Color("d9ded0")
-const GOLD = Color("bc8c41")
+const World = preload("res://scripts/ui/world_screens.gd")
+const SANS = preload("res://assets/fonts/Nunito-Regular.ttf")
+const BOLD = preload("res://assets/fonts/Nunito-ExtraBold.ttf")
+const SERIF = preload("res://assets/fonts/LilitaOne-Regular.ttf")
+const PAPER = Color("eee8ff")
+const INK = Color("36235f")
+const MUTED = Color("75658e")
+const GREEN = Color("8452db") # Legacy helper name; the world accent is now purple.
+const PALE = Color("e4d8fb")
+const LINE = Color("c4b0e6")
+const GOLD = Color("ffce57")
+const PINK = Color("ed4f9a")
+const AQUA = Color("28c9d4")
+const WHITE = Color("fff9ff")
 
 var session: RefCounted
 var audio_service: Node
@@ -40,6 +44,10 @@ var last_size: Vector2 = Vector2.ZERO
 var catalogue: Array = []
 var travel: Dictionary = {}
 var travel_time: float = 1.0
+var celebration_time: float = 9.0
+var texture_cache: Dictionary = {}
+var presented_hud: Dictionary = {}
+var order_flash: float = 0.0
 
 
 func _ready() -> void:
@@ -119,6 +127,12 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
+	if order_flash > 0.0:
+		order_flash = maxf(0.0, order_flash - delta)
+		stage.queue_redraw()
+	if celebration_time < 2.4 and modal == "won":
+		celebration_time += delta
+		overlay.queue_redraw()
 	if not travel.is_empty():
 		travel_time += delta
 		if travel_time >= 0.36:
@@ -175,6 +189,7 @@ func _sync_board(reset: bool = false) -> void:
 	board.visible = screen == "game"
 	board.input_enabled = screen == "game" and modal.is_empty() and not busy and not inspection
 	if reset:
+		presented_hud.clear()
 		board.configure(session.level, session.state)
 	else:
 		board.update_state(session.state)
@@ -187,6 +202,7 @@ func _sync_board(reset: bool = false) -> void:
 func _select_screw(screw_id: String) -> void:
 	if busy or not modal.is_empty() or inspection or screen != "game":
 		return
+	var before_state: Dictionary = session.state.duplicate(true)
 	var result: Dictionary = session.select_screw(screw_id)
 	if not result.get("accepted", false):
 		var reason: String = str(result.get("rejection_reason", ""))
@@ -196,6 +212,7 @@ func _select_screw(screw_id: String) -> void:
 		first_clear = bool(result.get("first_clear", false))
 	hint_id = ""
 	busy = true
+	presented_hud = before_state if not board.reduced_motion else {}
 	if not board.reduced_motion:
 		_begin_travel(screw_id, result.get("events", []))
 	audio_service.play("tap")
@@ -217,8 +234,11 @@ func _select_screw(screw_id: String) -> void:
 	if captured != generation:
 		return
 	busy = false
+	presented_hud.clear()
+	order_flash = 0.45 if completed and not board.reduced_motion else 0.0
 	if session.state.get("status") == "WON":
 		modal = "won"
+		celebration_time = 0.0
 		audio_service.play("win")
 	elif session.state.get("status") == "STUCK":
 		modal = "stuck"
@@ -413,37 +433,50 @@ func _button(label: String, rect: Rect2, callback: Callable, style: String = "li
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_override("font", BOLD)
 	button.add_theme_font_size_override("font_size", font_size)
-	var fill: Color = GREEN if style == "primary" else Color("fffef9")
-	if style == "quiet":
-		fill = PALE
-	if style == "clear":
-		fill = Color(0, 0, 0, 0)
+	var fill: Color = {"primary": PINK, "aqua": AQUA, "yellow": GOLD, "quiet": PALE, "light": WHITE, "clear": Color.TRANSPARENT, "level": GREEN}.get(style, WHITE)
+	var vivid: bool = style in ["primary", "level"]
+	var radius: int = int(minf(rect.size.x, rect.size.y) * 0.5) if style == "level" else 26
 	for state_name in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var box := StyleBoxFlat.new()
 		box.bg_color = fill
-		box.corner_radius_top_left = 18
-		box.corner_radius_top_right = 18
-		box.corner_radius_bottom_left = 18
-		box.corner_radius_bottom_right = 18
-		box.border_color = LINE if style != "primary" else GREEN
+		box.set_corner_radius_all(radius)
+		box.border_color = fill.lightened(0.35)
+		box.shadow_color = fill.darkened(0.31) if style != "clear" else Color.TRANSPARENT
+		box.shadow_size = 2
+		box.shadow_offset = Vector2(0, 7)
+		box.content_margin_top = 0
 		if state_name == "hover":
-			box.bg_color = fill.lightened(0.055) if style == "primary" else Color("edf0e4")
+			box.bg_color = fill.lightened(0.08)
 		if state_name == "pressed":
-			box.bg_color = fill.darkened(0.08)
+			box.bg_color = fill.darkened(0.04)
+			box.shadow_offset = Vector2(0, 2)
+			box.content_margin_top = 7
 		if state_name == "disabled":
-			box.bg_color = Color("eeeee6")
+			box.bg_color = Color("d8d4e9")
+			box.border_color = Color("eeeafa")
+			box.shadow_color = Color("b9b3ce")
 		if state_name == "focus":
 			box.bg_color = Color.TRANSPARENT
-			box.border_color = GOLD
-			box.set_border_width_all(3)
+			box.border_color = Color("6a369e")
+			box.shadow_size = 0
+			box.shadow_color = Color.TRANSPARENT
+			box.set_border_width_all(2)
 		elif style != "clear":
-			box.set_border_width_all(1)
+			box.set_border_width_all(2)
+		else:
+			box.shadow_size = 0
 		button.add_theme_stylebox_override(state_name, box)
-	button.add_theme_color_override("font_color", Color("fffdf4") if style == "primary" else INK)
-	button.add_theme_color_override("font_hover_color", Color("fffdf4") if style == "primary" else INK)
-	button.add_theme_color_override("font_pressed_color", Color("fffdf4") if style == "primary" else INK)
-	button.add_theme_color_override("font_disabled_color", MUTED.lightened(0.28))
-	button.pressed.connect(callback)
+	button.add_theme_color_override("font_color", WHITE if vivid else INK)
+	button.add_theme_color_override("font_hover_color", WHITE if vivid else INK)
+	button.add_theme_color_override("font_pressed_color", WHITE if vivid else INK)
+	button.add_theme_color_override("font_disabled_color", Color("978ba9"))
+	button.pressed.connect(func():
+		if is_instance_valid(audio_service): audio_service.play("click")
+		callback.call())
+	if style != "clear":
+		button.draw.connect(func():
+			var offset: float = 5.0 if button.button_pressed else 0.0
+			_round(button, Rect2(15, 7 + offset, maxf(0, rect.size.x - 30), 8), Color(1, 1, 1, 0.26), 4))
 	controls.add_child(button)
 	return button
 
@@ -455,15 +488,16 @@ func _icon_button(kind: String, rect: Rect2, callback: Callable, tip: String) ->
 	button.tooltip_text = tip
 	button.name = tip.replace(" ", "")
 	button.draw.connect(func():
-		Craft.rounded(button, Rect2(Vector2(20, 20), rect.size), PALE, 18)
-		Craft.icon(button, touch_rect.size * 0.5, kind, 25.0, GREEN))
+		Craft.rounded(button, Rect2(Vector2(20, 25), rect.size), Color("6431ab"), 20)
+		Craft.rounded(button, Rect2(Vector2(20, 20), rect.size), GREEN, 20, Color("b18aee"), 2)
+		Craft.icon(button, touch_rect.size * 0.5, kind, 24.0, WHITE))
 	return button
 
 
 func _build_game_controls() -> void:
 	_icon_button("home", Rect2(40, 35, 56, 56), func(): _navigate("home"), "Workshop home")
 	_icon_button("settings", Rect2(624, 35, 56, 56), func(): _open_modal("settings"), "Settings")
-	_button("View queue  ›", Rect2(480, 272, 194, 96), func(): _open_modal("queue"), "clear", false, 17)
+	_button("View queue  ›", Rect2(480, 272, 194, 96), func(): _open_modal("queue"), "clear", false, 19)
 	if inspection:
 		_button("Back to puzzle", Rect2(160, 1106, 400, 96), _set_inspection.bind(false), "primary")
 	else:
@@ -473,18 +507,13 @@ func _build_game_controls() -> void:
 
 
 func _tool_button(kind: String, label: String, rect: Rect2, action: Callable, disabled: bool = false) -> void:
-	var button: Button = _button("      " + label, rect, action, "light", disabled, 20)
+	var button: Button = _button("      " + label, rect, action, {"undo": "aqua", "hint": "yellow", "blueprint": "light"}.get(kind, "light"), disabled, 22)
 	button.name = label
-	button.draw.connect(func(): Craft.icon(button, Vector2(38, rect.size.y * 0.5), kind, 24.0, MUTED if disabled else GREEN))
+	button.draw.connect(func(): Craft.icon(button, Vector2(38, rect.size.y * 0.5), kind, 25.0, MUTED if disabled else INK))
 
 
 func _build_home_controls() -> void:
-	_icon_button("settings", Rect2(624, 35, 56, 56), func(): _open_modal("settings"), "Settings")
-	_button("Continue your craft   ›", Rect2(80, 817, 560, 78), func(): _navigate("game"), "primary", false, 25)
-	_button("Explore 1,000 puzzles", Rect2(80, 912, 560, 68), func(): level_page = int((int(session.profile.get("current_level", 1)) - 1) / 25); _navigate("levels"))
-	_button("My collection", Rect2(80, 1000, 270, 68), func(): _navigate("album"))
-	_button("Wood finishes", Rect2(370, 1000, 270, 68), func(): _navigate("shop"))
-	_button("How to play", Rect2(250, 1120, 220, 44), func(): _open_modal("help"), "clear", false, 19)
+	World.build_home(self)
 
 
 func _back_button() -> void:
@@ -492,38 +521,15 @@ func _back_button() -> void:
 
 
 func _build_level_controls() -> void:
-	_back_button()
-	for i in range(25):
-		var index: int = level_page * 25 + i + 1
-		if index > catalogue.size():
-			break
-		var x: float = 40 + (i % 5) * 132
-		var y: float = 268 + (i / 5) * 139
-		var complete: bool = session.profile.get("completed_levels", []).has("campaign_%04d" % index)
-		var label: String = "%02d" % index
-		if complete:
-			label += "  ✓"
-		_button(label, Rect2(x, y, 112, 109), _start_level.bind(index), "quiet" if complete else "light", false, 26)
-	_button("‹  Previous", Rect2(40, 1010, 190, 64), func(): level_page = maxi(0, level_page - 1); _rebuild_controls(), "quiet", level_page == 0, 19)
-	_button("Next  ›", Rect2(490, 1010, 190, 64), func(): level_page = mini(39, level_page + 1); _rebuild_controls(), "quiet", (level_page + 1) * 25 >= catalogue.size(), 19)
-	_button("First", Rect2(250, 1110, 95, 48), func(): level_page = 0; _rebuild_controls(), "clear", false, 18)
-	_button("Last", Rect2(375, 1110, 95, 48), func(): level_page = int((catalogue.size() - 1) / 25); _rebuild_controls(), "clear", false, 18)
+	World.build_levels(self)
 
 
 func _build_album_controls() -> void:
-	_back_button()
-	_button("‹", Rect2(40, 1090, 95, 64), func(): album_page = maxi(0, album_page - 1); _rebuild_controls(), "quiet", album_page == 0, 28)
-	_button("›", Rect2(585, 1090, 95, 64), func(): album_page = mini(24, album_page + 1); _rebuild_controls(), "quiet", album_page == 24, 28)
+	World.build_album(self)
 
 
 func _build_shop_controls() -> void:
-	_back_button()
-	var skins: Array = ["beech", "walnut", "rose", "sage"]
-	for i in range(4):
-		var skin_id: String = skins[i]
-		var owned: bool = session.profile.get("owned_skins", []).has(skin_id)
-		var selected: bool = session.profile.get("skin", "beech") == skin_id
-		_button("In use" if selected else ("Use finish" if owned else "100 coins"), Rect2(414, 291 + i * 185, 225, 61), _purchase.bind(skin_id), "quiet" if selected else "primary", selected, 20)
+	World.build_shop(self)
 
 
 func _build_modal_controls() -> void:
@@ -534,7 +540,7 @@ func _build_modal_controls() -> void:
 			for i in range(keys.size()):
 				var key: String = keys[i]
 				var enabled: bool = bool(session.profile.get("settings", {}).get(key, false))
-				_button("On" if enabled else "Off", Rect2(500, 368 + 91 * i, 120, 56), _toggle_setting.bind(key), "primary" if enabled else "quiet", false, 20)
+				_button("On" if enabled else "Off", Rect2(500, 368 + 91 * i, 120, 60), _toggle_setting.bind(key), "aqua" if enabled else "quiet", false, 22)
 			_button("How to play", Rect2(100, 780, 520, 62), func(): _open_modal("help"))
 			_button("Restart this puzzle", Rect2(100, 858, 520, 62), func(): _open_modal("restart"), "quiet")
 			_button("Back to crafting", Rect2(100, 959, 520, 70), func(): _open_modal(""), "primary")
@@ -555,15 +561,18 @@ func _build_modal_controls() -> void:
 			_button("Keep crafting", Rect2(110, 818, 500, 64), func(): _open_modal(""), "quiet")
 		"won":
 			var next: int = int(session.level.get("index", 1)) + 1
-			_button("Next little masterpiece   ›" if next <= catalogue.size() else "Explore your collection", Rect2(94, 855, 532, 76), _start_level.bind(next) if next <= catalogue.size() else _navigate.bind("album"), "primary", false, 23)
-			_button("My collection", Rect2(195, 955, 330, 54), func(): _navigate("album"), "clear", false, 20)
+			var next_button: Button = _button("Next level   ›" if next <= catalogue.size() else "Explore your collection", Rect2(104, 943, 512, 88), _start_level.bind(next) if next <= catalogue.size() else _navigate.bind("album"), "primary", false, 30)
+			next_button.add_theme_font_override("font", SERIF)
+			_button("My collection", Rect2(195, 1050, 330, 58), func(): _navigate("album"), "clear", false, 22)
 
 
 func _draw_stage() -> void:
-	stage.draw_rect(Rect2(0, 0, 720, 1280), PAPER)
-	# Small, deterministic paper flecks provide warmth without distracting from targets.
-	for i in range(160):
-		stage.draw_circle(Vector2(fmod(i * 137.31, 720), fmod(i * 83.71, 1280)), 0.65, Color(0.35, 0.38, 0.29, 0.035))
+	# The central play surface stays quiet; toy-world details frame the action.
+	stage.draw_polygon(PackedVector2Array([Vector2.ZERO, Vector2(720,0), Vector2(720,1280), Vector2(0,1280)]), PackedColorArray([Color("ded1fb"),Color("eaddff"),Color("d9effa"),Color("ede5ff")]))
+	for i in range(14):
+		var x: float = 10.0 if i % 2 == 0 else 708.0
+		var y: float = 112 + i * 88
+		_star(stage, Vector2(x, y), 8.0 + i % 3 * 2, Color(1,1,1,0.45), float(i))
 	if session == null:
 		return
 	match screen:
@@ -573,8 +582,8 @@ func _draw_stage() -> void:
 		"album": _draw_album()
 		"shop": _draw_shop()
 	if not message.is_empty() and screen != "game":
-		_round(stage, Rect2(40, 1185, 640, 58), INK, 18)
-		_text(stage, message, Vector2(56, 1222), 17, PAPER, 608, HORIZONTAL_ALIGNMENT_CENTER)
+		_round(stage, Rect2(35, 1198, 650, 58), INK, 24)
+		_text(stage, message, Vector2(50, 1236), 20, WHITE, 620, HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _text(canvas: CanvasItem, value: String, at: Vector2, size_px: int = 22, color: Color = INK, width: float = -1.0, alignment: HorizontalAlignment = HORIZONTAL_ALIGNMENT_LEFT, serif: bool = false, bold: bool = false) -> void:
@@ -613,53 +622,75 @@ func _paragraph(canvas: CanvasItem, value: String, at: Vector2, width: float, si
 
 
 func _brand(canvas: CanvasItem, y: float = 70) -> void:
-	_text(canvas, "S C R E W C R A F T", Vector2(130, y), 21, GREEN, 460, HORIZONTAL_ALIGNMENT_CENTER, false, true)
+	var at := Vector2(120, y + 6)
+	canvas.draw_string_outline(SERIF, at + Vector2(0,3), "SCREWCRAFT", HORIZONTAL_ALIGNMENT_CENTER, 480, 40, 7, Color("624094"))
+	canvas.draw_string_outline(SERIF, at, "SCREWCRAFT", HORIZONTAL_ALIGNMENT_CENTER, 480, 40, 5, WHITE)
+	_text(canvas, "SCREWCRAFT", at, 40, PINK, 480, HORIZONTAL_ALIGNMENT_CENTER, true)
 
 
 func _draw_game() -> void:
 	_brand(stage)
 	var index: int = int(session.level.get("index", 1))
-	_text(stage, "Level %02d" % index, Vector2(40, 143), 43, INK, -1, HORIZONTAL_ALIGNMENT_LEFT, true)
-	_text(stage, str(session.level.get("name", "Little beginnings")), Vector2(265, 137), 20, MUTED, 415, HORIZONTAL_ALIGNMENT_RIGHT)
-	_text(stage, "ACTIVE ORDERS", Vector2(42, 177), 15, MUTED, -1, HORIZONTAL_ALIGNMENT_LEFT, false, true)
-	_text(stage, "UP NEXT", Vector2(484, 177), 15, MUTED, 192, HORIZONTAL_ALIGNMENT_CENTER, false, true)
-	var boxes: Array = session.state.get("active_box_slots", [])
+	_round(stage, Rect2(34, 110, 652, 49), Color("b895e7"), 22)
+	_round(stage, Rect2(34, 104, 652, 49), GREEN, 22, Color("b996ed"))
+	_star(stage, Vector2(65, 128), 15, GOLD, -0.2)
+	_text(stage, "LEVEL %02d" % index, Vector2(88, 140), 29, WHITE, -1, HORIZONTAL_ALIGNMENT_LEFT, true)
+	var friendly_name: String = {1: "Welcome to the toybox!", 2: "A hidden surprise", 3: "Make a little room"}.get(index, str(session.level.get("name", "Toybox magic")))
+	_text(stage, friendly_name, Vector2(280, 138), 20, WHITE, 376, HORIZONTAL_ALIGNMENT_RIGHT, false, true)
+	_text(stage, "FILL THESE BOXES", Vector2(43, 185), 18, INK, -1, HORIZONTAL_ALIGNMENT_LEFT, false, true)
+	_text(stage, "NEXT UP", Vector2(485, 185), 18, INK, 191, HORIZONTAL_ALIGNMENT_CENTER, false, true)
+	var hud: Dictionary = presented_hud if not presented_hud.is_empty() else session.state
+	var boxes: Array = hud.get("active_box_slots", [])
 	for i in range(2):
-		_draw_box(stage, Rect2(40 + i * 222, 191, 204, 119), boxes[i] if boxes.size() > i else null)
+		_draw_box(stage, Rect2(40 + i * 222, 204, 204, 116), boxes[i] if boxes.size() > i else null)
+		if order_flash > 0.0:
+			for j in range(5):
+				var center := Vector2(61 + i*222 + j*37, 202 - sin(j*1.7)*7)
+				_star(stage, center, 5 + order_flash*14, Color(1,0.8,0.25,order_flash*2), order_flash*2+j)
 	var queue: Array = session.level.get("boxes_in_activation_order", [])
-	var cursor: int = int(session.state.get("next_queue_index", 2))
+	var cursor: int = int(hud.get("next_queue_index", 2))
 	for i in range(2):
-		var rect := Rect2(485 + i * 100, 193, 93, 103)
-		_round(stage, rect, Color("f0f1e7"), 18, LINE)
+		var rect := Rect2(485 + i * 100, 204, 93, 91)
+		_round(stage, Rect2(rect.position + Vector2(0,4), rect.size), Color("aa8ace"), 21)
+		_round(stage, rect, WHITE, 21, Color("c9b2e9"))
 		if cursor + i < queue.size():
 			var color_id: String = str(queue[cursor + i].color_id)
-			Craft.symbol(stage, rect.position + Vector2(46, 40), color_id, 13.0, Craft.color_for(color_id))
-			_text(stage, color_id.capitalize(), rect.position + Vector2(0, 79), 17, INK, rect.size.x, HORIZONTAL_ALIGNMENT_CENTER, false, true)
+			Craft.screw(stage, rect.position + Vector2(46, 32), color_id, 21.0)
+			_text(stage, color_id.capitalize(), rect.position + Vector2(0, 76), 18, INK, rect.size.x, HORIZONTAL_ALIGNMENT_CENTER, false, true)
 		else:
-			_text(stage, "—", rect.position + Vector2(0, 62), 24, MUTED, rect.size.x, HORIZONTAL_ALIGNMENT_CENTER)
-	_round(stage, Rect2(40, 349, 640, 77), Color("e9ecdf"), 22)
-	_text(stage, "BUFFER", Vector2(63, 379), 13, MUTED, -1, HORIZONTAL_ALIGNMENT_LEFT, false, true)
-	var buffer: Array = session.state.get("buffer_screw_ids", [])
-	_text(stage, "%d / 5" % buffer.size(), Vector2(65, 405), 18, GREEN, -1, HORIZONTAL_ALIGNMENT_LEFT, false, true)
+			Craft.icon(stage, rect.position + Vector2(46, 36), "check", 20, Color("b5a2ca"))
+			_text(stage, "Done!", rect.position + Vector2(0, 76), 18, MUTED, rect.size.x, HORIZONTAL_ALIGNMENT_CENTER, false, true)
+	_round(stage, Rect2(40, 355, 640, 76), Color("66419e"), 25)
+	_round(stage, Rect2(40, 348, 640, 76), GREEN, 25, Color("b497ea"))
+	_round(stage, Rect2(52, 355, 616, 9), Color(1,1,1,0.18), 4)
+	_text(stage, "HOLDING", Vector2(62, 379), 16, WHITE, -1, HORIZONTAL_ALIGNMENT_LEFT, false, true)
+	var buffer: Array = hud.get("buffer_screw_ids", [])
+	_text(stage, "%d / 5" % buffer.size(), Vector2(85, 408), 26, GOLD, -1, HORIZONTAL_ALIGNMENT_LEFT, true)
 	for i in range(5):
 		var center := Vector2(216 + i * 96, 388)
-		stage.draw_circle(center + Vector2(0, 2), 28, Color("d5d9c9"))
-		stage.draw_circle(center, 25, Color("c4cbba"))
-		stage.draw_arc(center, 24, PI, TAU, 24, Color("aeb7a4"), 2, true)
+		Craft.socket(stage, center, 26, Color("cdb8ec"))
 		if i < buffer.size():
 			Craft.screw(stage, center, _color_of(str(buffer[i])), 24.0)
 	var caption: String = message
 	if caption.is_empty():
-		caption = "BLUEPRINT · Read-only layer inspection" if inspection else str(session.level.get("lesson", "Match a screw. Make a little room."))
+		caption = "BLUEPRINT: peek at every hidden layer!" if inspection else "Pop a screw. Uncover a surprise!"
 		if not inspection and index == 1:
-			caption = "Tap a colored screw. Match three to pack a box."
+			caption = "Hi, I'm Pip! Tap a screw. Match three to pack a box!"
 		elif not inspection and index == 2:
-			caption = "Clear the front piece to reveal the screws beneath."
+			caption = "Clear the top piece. There's more fun underneath!"
 		elif not inspection and index == 3:
-			caption = "Green waits in the buffer until its box arrives."
-	_paragraph(stage, caption, Vector2(46, 1068), 628, 16, GREEN if not message.is_empty() else MUTED, 22, true)
-	_text(stage, "TAKE YOUR TIME. MAKE SOMETHING LOVELY.", Vector2(40, 1230), 13, MUTED, 640, HORIZONTAL_ALIGNMENT_CENTER)
-	_line(stage, Vector2(292, 1250), Vector2(428, 1250), Color("ced4c5"))
+			caption = "Green can wait here until its matching box arrives."
+		elif not inspection and index == 8:
+			caption = "Holding spaces full? A matching screw can still move!"
+		elif not inspection:
+			var tips: Array = ["Peek at the queue before you pop!", "Clear a piece to open a new path.", "A little space can make a big difference.", "Stuck on a twist? Try a free Hint!", "See every hidden screw with Blueprint."]
+			caption = tips[index % tips.size()]
+	_round(stage, Rect2(112, 1047, 563, 53), WHITE, 20, Color("d5c3ee"))
+	stage.draw_colored_polygon(PackedVector2Array([Vector2(115,1063),Vector2(98,1077),Vector2(117,1085)]), WHITE)
+	_pip(stage, Rect2(32,1032,80,80))
+	_paragraph(stage, caption, Vector2(123, 1069), 542, 18, INK, 22, true)
+	_text(stage, "FREE TOOLS", Vector2(43, 1239), 16, GREEN, 632, HORIZONTAL_ALIGNMENT_CENTER, false, true)
+	for x in [285,435]: _star(stage, Vector2(x,1232), 6, PINK)
 
 
 func _color_of(id: String) -> String:
@@ -670,36 +701,31 @@ func _color_of(id: String) -> String:
 
 
 func _draw_box(canvas: CanvasItem, rect: Rect2, value: Variant) -> void:
-	_round(canvas, rect.grow_individual(0, 4, 0, 4), Color("daddcf"), 20)
-	_round(canvas, rect, Color("fffdf4"), 20, LINE)
+	var color: Color = Color("b7a2d3") if value == null else Craft.color_for(str(value.get("color_id", "red")))
+	# A proper little carry case: handle, thick rim, inset tray and molded sockets.
+	_round(canvas, Rect2(rect.position + Vector2(rect.size.x*0.31,-12), Vector2(rect.size.x*0.38,25)), color.darkened(0.25), 12)
+	_round(canvas, Rect2(rect.position + Vector2(rect.size.x*0.34,-8), Vector2(rect.size.x*0.32,17)), color.lightened(0.38), 7)
+	_round(canvas, Rect2(rect.position + Vector2(0,7), rect.size), color.darkened(0.32), 23)
+	_round(canvas, rect, color, 23, color.lightened(0.5))
+	_round(canvas, Rect2(rect.position+Vector2(8,43), rect.size-Vector2(16,51)), WHITE, 16)
+	_round(canvas, Rect2(rect.position+Vector2(13,6),Vector2(rect.size.x-26,7)), Color(1,1,1,0.3),4)
 	if value == null:
-		_text(canvas, "All packed", rect.position + Vector2(0, 67), 21, MUTED, rect.size.x, HORIZONTAL_ALIGNMENT_CENTER, true)
+		_text(canvas, "PACKED!", rect.position+Vector2(0,31), 23, WHITE, rect.size.x, HORIZONTAL_ALIGNMENT_CENTER, true)
+		Craft.icon(canvas,rect.position+Vector2(rect.size.x*0.5,80),"check",22,GREEN)
 		return
 	var color_id: String = str(value.get("color_id", "red"))
-	var color: Color = Craft.color_for(color_id)
-	_round(canvas, Rect2(rect.position, Vector2(rect.size.x, 43)), color, 19)
-	canvas.draw_rect(Rect2(rect.position + Vector2(1, 23), Vector2(rect.size.x - 2, 20)), color)
 	var fill: int = value.get("screw_ids", []).size()
-	_text(canvas, "%s  %d/3" % [color_id.capitalize(), fill], rect.position + Vector2(0, 30), 21, INK if color_id == "yellow" else Color("fffaf0"), rect.size.x, HORIZONTAL_ALIGNMENT_CENTER, false, true)
+	var label_color: Color = INK if color_id in ["yellow","green","teal"] else WHITE
+	_text(canvas, "%s  %d/3" % [color_id.capitalize(), fill], rect.position + Vector2(0, 32), 23, label_color, rect.size.x, HORIZONTAL_ALIGNMENT_CENTER, false, true)
 	for j in range(3):
-		var center: Vector2 = rect.position + Vector2(41 + j * 61, 81)
-		canvas.draw_circle(center + Vector2(0, 2), 22, Color("ececdf"))
-		canvas.draw_circle(center, 19, Color("c7ccbd"))
+		var center: Vector2 = rect.position + Vector2(rect.size.x * (0.20 + j * 0.30), 80)
+		Craft.socket(canvas, center, 20, Color("d5cce8"))
 		if j < fill:
-			Craft.screw(canvas, center, color_id, 22.0)
+			Craft.screw(canvas, center, color_id, 23.0)
 
 
 func _draw_home() -> void:
-	_brand(stage, 76)
-	_text(stage, "A little pause.", Vector2(40, 196), 63, INK, 640, HORIZONTAL_ALIGNMENT_CENTER, true)
-	_text(stage, "A clever little puzzle.", Vector2(40, 263), 53, INK, 640, HORIZONTAL_ALIGNMENT_CENTER, true)
-	_text(stage, "Unwind, one screw at a time.", Vector2(40, 320), 22, MUTED, 640, HORIZONTAL_ALIGNMENT_CENTER)
-	_round(stage, Rect2(80, 366, 560, 371), Color("e8dec8"), 145)
-	_draw_keepsake(stage, Vector2(360, 543), 1.75, "flower", true)
-	_round(stage, Rect2(208, 706, 304, 46), Color("fffdf7"), 23, LINE)
-	_text(stage, "YOUR POCKET WORKSHOP", Vector2(208, 736), 14, GREEN, 304, HORIZONTAL_ALIGNMENT_CENTER, false, true)
-	_text(stage, "%d keepsakes made  ·  %d coins" % [session.profile.get("completed_levels", []).size(), int(session.profile.get("coins", 0))], Vector2(40, 792), 19, MUTED, 640, HORIZONTAL_ALIGNMENT_CENTER)
-	_text(stage, "1,000 puzzles. Free tools. All yours.", Vector2(40, 1220), 17, MUTED, 640, HORIZONTAL_ALIGNMENT_CENTER)
+	World.draw_home(self, stage)
 
 
 func _page_heading(title: String, subtitle: String) -> void:
@@ -709,87 +735,19 @@ func _page_heading(title: String, subtitle: String) -> void:
 
 
 func _draw_levels() -> void:
-	_page_heading("The puzzle shelf", "1,000 small moments of discovery. Pick any puzzle.")
-	for i in range(25):
-		var index: int = level_page * 25 + i + 1
-		if index > catalogue.size():
-			break
-		var x: float = 40 + (i % 5) * 132
-		var y: float = 268 + (i / 5) * 139
-		var meta: Dictionary = catalogue[index - 1]
-		var difficulty: String = str(meta.get("difficulty", "gentle")).capitalize()
-		_text(stage, difficulty, Vector2(x, y + 130), 13, MUTED, 112, HORIZONTAL_ALIGNMENT_CENTER)
-	_text(stage, "%02d / %02d" % [level_page + 1, ceili(catalogue.size() / 25.0)], Vector2(240, 1051), 23, GREEN, 240, HORIZONTAL_ALIGNMENT_CENTER)
-	_text(stage, "Every puzzle has a verified solution. Every tool is free.", Vector2(40, 1230), 16, MUTED, 640, HORIZONTAL_ALIGNMENT_CENTER)
+	World.draw_levels(self, stage)
 
 
 func _draw_album() -> void:
-	_page_heading("Little things, collected", "Five puzzles make a chapter. A workshop full of stories.")
-	var names: Array = ["Garden moments", "By the water", "Little aviary", "Wind & wonder", "Tea for two", "Home sweet home", "Woodland walk", "Playful things"]
-	var families: Array = ["flower", "boat", "bird", "windmill", "teapot", "house", "leaf", "kite"]
-	for i in range(8):
-		var group: int = album_page * 8 + i
-		var rect := Rect2(40 + (i % 2) * 330, 263 + (i / 2) * 199, 310, 181)
-		var count: int = 0
-		for j in range(5):
-			if session.profile.get("completed_levels", []).has("campaign_%04d" % (group * 5 + j + 1)):
-				count += 1
-		_round(stage, rect, Color("ecebdc") if count < 5 else Color("e1ead7"), 24, LINE)
-		_draw_keepsake(stage, rect.position + Vector2(62, 68), 0.48, families[group % 8], count == 5)
-		_text(stage, names[group % 8], rect.position + Vector2(115, 60), 21, INK, -1, HORIZONTAL_ALIGNMENT_LEFT, true)
-		_text(stage, "Chapter %d" % (group + 1), rect.position + Vector2(115, 91), 15, MUTED)
-		for j in range(5):
-			stage.draw_circle(rect.position + Vector2(71 + j * 42, 144), 9, GREEN if j < count else Color("cfd5c7"))
-	_text(stage, "CHAPTERS %d–%d OF 200" % [album_page * 8 + 1, album_page * 8 + 8], Vector2(140, 1130), 18, MUTED, 440, HORIZONTAL_ALIGNMENT_CENTER)
+	World.draw_album(self, stage)
 
 
 func _draw_shop() -> void:
-	_page_heading("A finish of your own", "Cosmetic touches, earned through little achievements.")
-	_text(stage, "%d coins" % int(session.profile.get("coins", 0)), Vector2(440, 72), 22, GOLD, 230, HORIZONTAL_ALIGNMENT_RIGHT, false, true)
-	var labels: Array = ["Natural beech", "Warm walnut", "Rosewood blush", "Sage workshop"]
-	var colors: Array = [Color("e0bf86"), Color("86604a"), Color("c48d81"), Color("97ab8b")]
-	for i in range(4):
-		var y: float = 261 + i * 185
-		_round(stage, Rect2(40, y, 640, 150), Color("fffdf7"), 24, LINE)
-		_round(stage, Rect2(63, y + 24, 126, 102), colors[i], 25)
-		for j in range(4):
-			stage.draw_line(Vector2(78, y + 41 + j * 19), Vector2(170, y + 44 + j * 19), colors[i].darkened(0.1), 1.0, true)
-		Craft.screw(stage, Vector2(125, y + 76), ["red", "yellow", "blue", "green"][i], 24.0)
-		_text(stage, labels[i], Vector2(211, y + 55), 23, INK, -1, HORIZONTAL_ALIGNMENT_LEFT, true)
-		_text(stage, "A new board mood", Vector2(211, y + 90), 15, MUTED)
-	_text(stage, "20 coins for each first clear. No purchases, ever required.", Vector2(40, 1086), 18, MUTED, 640, HORIZONTAL_ALIGNMENT_CENTER)
-	_text(stage, "Same clear colors. Same clever puzzles.", Vector2(40, 1130), 18, MUTED, 640, HORIZONTAL_ALIGNMENT_CENTER)
+	World.draw_shop(self, stage)
 
 
 func _draw_keepsake(canvas: CanvasItem, center: Vector2, zoom: float, family: String, earned: bool) -> void:
-	var wood: Color = Color("d1aa6c") if earned else Color("ccd0be")
-	var light: Color = Color("edcf94") if earned else Color("d8dbc9")
-	canvas.draw_set_transform(center, 0, Vector2.ONE * zoom)
-	if family not in ["flower", "leaf", "house", "teapot", "sailboat", "boat"]:
-		canvas.draw_circle(Vector2(2, 4), 91, wood.darkened(0.15))
-		canvas.draw_circle(Vector2.ZERO, 91, light)
-		canvas.draw_arc(Vector2.ZERO, 83, 0, TAU, 70, wood, 2, true)
-		Craft.motif(canvas, Vector2.ZERO, family, 65, GREEN if earned else wood.darkened(0.2))
-	elif family in ["flower", "leaf"]:
-		_round(canvas, Rect2(-9, 0, 18, 98), Color("809875") if earned else wood, 9)
-		for i in range(5 if family == "flower" else 4):
-			var a: float = i * TAU / (5.0 if family == "flower" else 4.0) - PI * 0.5
-			var p := Vector2(cos(a), sin(a)) * 45
-			canvas.draw_circle(p + Vector2(2, 5), 34, wood.darkened(0.12))
-			canvas.draw_circle(p, 34, light if i % 2 == 0 else wood)
-			canvas.draw_arc(p, 29, PI, TAU, 20, Color(1, 1, 0.9, 0.35), 2, true)
-		Craft.screw(canvas, Vector2.ZERO, "yellow" if earned else "green", 24.0)
-	elif family in ["house", "teapot"]:
-		_round(canvas, Rect2(-55, -18, 110, 92), light, 18)
-		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-70, -14), Vector2(0, -79), Vector2(70, -14)]), wood)
-		_round(canvas, Rect2(-13, 30, 26, 44), wood.darkened(0.17), 7)
-		Craft.screw(canvas, Vector2(0, -29), "red", 17.0)
-	else:
-		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-83, 20), Vector2(78, 20), Vector2(46, 62), Vector2(-45, 62)]), wood)
-		canvas.draw_colored_polygon(PackedVector2Array([Vector2(-8, 10), Vector2(-8, -91), Vector2(70, 10)]), light)
-		_round(canvas, Rect2(-16, -89, 11, 115), wood.darkened(0.1), 5)
-		Craft.screw(canvas, Vector2(-9, 31), "blue", 19.0)
-	canvas.draw_set_transform(Vector2.ZERO)
+	_sticker(canvas,center,family,88*zoom,AQUA if earned else PALE)
 
 
 func _draw_overlay() -> void:
@@ -799,89 +757,168 @@ func _draw_overlay() -> void:
 		var start: Vector2 = travel["from"]
 		var end: Vector2 = travel["to"]
 		var at: Vector2 = start.lerp(end, eased) + Vector2(sin(progress * PI) * 25, -sin(progress * PI) * 58)
+		for i in range(4):
+			var tail: Vector2 = at + Vector2(-12 + i*7,25+i*8)
+			_star(overlay,tail,5-i,Color(1,0.83,0.33,(1-progress)*0.6),progress*2)
 		Craft.screw(overlay, at, str(travel.color), 24.0 + sin(progress * PI) * 5.0, 1.0, progress * TAU)
 	if modal.is_empty() or session == null:
 		return
-	overlay.draw_rect(Rect2(0, 0, 720, 1280), Color(0.13, 0.2, 0.15, 0.45))
+	overlay.draw_rect(Rect2(0, 0, 720, 1280), Color(0.16, 0.06, 0.28, 0.62))
 	var card := Rect2(70, 195, 580, 890)
 	if modal in ["stuck", "restart"]:
 		card = Rect2(70, 325, 580, 660)
-	_round(overlay, card.grow_individual(0, 6, 0, 5), Color(0.12, 0.18, 0.13, 0.15), 34)
-	_round(overlay, card, PAPER, 32)
+	elif modal == "won":
+		card = Rect2(52,177,616,962)
+	_round(overlay, Rect2(card.position + Vector2(0,13), card.size), Color("613487"), 40)
+	_round(overlay, card.grow(4), Color("bc89e4"), 39)
+	_round(overlay, card, WHITE, 35, Color("ffffff"))
+	_round(overlay,Rect2(card.position+Vector2(15,8),Vector2(card.size.x-30,8)),Color("ffffff"),4)
+	if modal == "won":
+		_draw_confetti()
 	match modal:
 		"settings": _draw_settings()
 		"help": _draw_help()
 		"queue": _draw_queue()
 		"stuck":
-			Craft.icon(overlay, Vector2(360, 423), "undo", 48.0, GREEN)
-			_text(overlay, "A little room to rethink", Vector2(95, 516), 37, INK, 530, HORIZONTAL_ALIGNMENT_CENTER, true)
-			_paragraph(overlay, "No moves are available. Undo a move to make room, or begin this same puzzle again.", Vector2(127, 579), 466, 23, MUTED, 35, true)
+			_pip(overlay,Rect2(267,346,186,186))
+			_text(overlay,"Let's untangle this!",Vector2(94,566),39,INK,532,HORIZONTAL_ALIGNMENT_CENTER,true)
+			_paragraph(overlay,"No room? No worries! Undo a move to free a space, or give this puzzle a fresh start.",Vector2(126,612),468,23,MUTED,32,true)
 		"restart":
-			Craft.icon(overlay, Vector2(360, 429), "undo", 44.0, GREEN)
-			_text(overlay, "A fresh beginning?", Vector2(95, 523), 42, INK, 530, HORIZONTAL_ALIGNMENT_CENTER, true)
-			_paragraph(overlay, "This puzzle will return to its starting arrangement. Your collection and coins stay safe.", Vector2(125, 586), 470, 22, MUTED, 35, true)
+			_pip(overlay,Rect2(283,355,154,154))
+			_text(overlay,"Ready for a redo?",Vector2(94,555),42,INK,532,HORIZONTAL_ALIGNMENT_CENTER,true)
+			_paragraph(overlay,"Put every piece back and try a new route. Your coins and collection are safe!",Vector2(130,610),460,23,MUTED,34,true)
 		"won": _draw_won()
 
 
 func _draw_settings() -> void:
-	_text(overlay, "Make yourself at home", Vector2(100, 282), 37, INK, -1, HORIZONTAL_ALIGNMENT_LEFT, true)
-	_text(overlay, "YOUR WORKSHOP, YOUR PACE", Vector2(102, 324), 14, MUTED)
-	var labels: Array = ["Sound effects", "Quiet music", "Gentle vibration", "Reduced motion"]
+	_text(overlay,"Workshop settings",Vector2(102,285),41,INK,-1,HORIZONTAL_ALIGNMENT_LEFT,true)
+	_text(overlay,"JUST THE WAY YOU LIKE IT",Vector2(105,326),18,GREEN,-1,HORIZONTAL_ALIGNMENT_LEFT,false,true)
+	var labels: Array = ["Sound effects", "Playful music", "Vibration", "Reduced motion"]
+	var icons: Array = ["sound", "hint", "settings", "star"]
 	for i in range(labels.size()):
-		_text(overlay, labels[i], Vector2(104, 405 + 91 * i), 24, INK)
-		_line(overlay, Vector2(100, 447 + 91 * i), Vector2(620, 447 + 91 * i))
-	_text(overlay, "Color symbols are always on.", Vector2(100, 752), 18, MUTED)
+		var y: float = 403 + i*91
+		_round(overlay,Rect2(99,y-40,61,61),[Color("d6f6f7"),Color("fff0c7"),Color("f6d5ea"),Color("e8ddfa")][i],20)
+		Craft.icon(overlay,Vector2(130,y-9),icons[i],20,GREEN)
+		_text(overlay, labels[i], Vector2(178, y), 25, INK,-1,HORIZONTAL_ALIGNMENT_LEFT,false,true)
+	_text(overlay,"Color + shape symbols are always on.",Vector2(100,752),20,MUTED,520,HORIZONTAL_ALIGNMENT_CENTER)
 
 
 func _draw_help() -> void:
-	_text(overlay, "A few little things", Vector2(100, 289), 44, INK, 520, HORIZONTAL_ALIGNMENT_CENTER, true)
-	_text(overlay, "THEN IT'S ALL YOURS", Vector2(100, 335), 14, MUTED, 520, HORIZONTAL_ALIGNMENT_CENTER)
-	var headings: Array = ["Match three. Pack a box.", "Make room for what's next.", "Lift a layer. Find a way.", "Take all the time you need."]
-	var copy: Array = ["Tap an exposed screw. It goes straight to a matching active box.", "Other colors wait in five buffer spaces, then move when their box arrives.", "Remove every screw from a piece to reveal the layer underneath.", "Undo, Hint and Blueprint are always free. A full buffer still allows direct matches."]
+	_text(overlay,"Let's make some magic!",Vector2(98,285),39,INK,524,HORIZONTAL_ALIGNMENT_CENTER,true)
+	_text(overlay,"PIP'S POCKET GUIDE",Vector2(100,328),18,GREEN,520,HORIZONTAL_ALIGNMENT_CENTER,false,true)
+	var headings: Array = ["Match three. Pack a box!", "Save a screw for later.", "Pop a piece. Peek below!", "Your tools are always free."]
+	var copy: Array = ["Tap an exposed screw. Matching colors go straight into a ready box.", "Five holding spaces keep other colors until their box arrives.", "Remove every screw from a piece to uncover the next layer.", "Undo, Hint and Blueprint help you out. Full holding spaces still allow direct matches!"]
 	for i in range(4):
-		var y: float = 407 + i * 136
-		overlay.draw_circle(Vector2(127, y), 21, PALE)
-		_text(overlay, str(i + 1), Vector2(107, y + 7), 22, GREEN, 40, HORIZONTAL_ALIGNMENT_CENTER, false, true)
-		_text(overlay, headings[i], Vector2(165, y + 7), 24, INK, -1, HORIZONTAL_ALIGNMENT_LEFT, true)
-		_paragraph(overlay, copy[i], Vector2(165, y + 41), 425, 19, MUTED, 28)
+		var y: float = 404 + i*138
+		var col: Color = [PINK,AQUA,GOLD,GREEN][i]
+		overlay.draw_circle(Vector2(129,y+2),27,col.darkened(0.22),true,-1,true)
+		overlay.draw_circle(Vector2(129,y-3),27,col,true,-1,true)
+		_text(overlay,str(i+1),Vector2(107,y+6),30,WHITE if i in [0,3] else INK,44,HORIZONTAL_ALIGNMENT_CENTER,true)
+		_text(overlay,headings[i],Vector2(173,y+5),25,INK,-1,HORIZONTAL_ALIGNMENT_LEFT,true)
+		_paragraph(overlay,copy[i],Vector2(173,y+40),421,21,MUTED,29)
 
 
 func _draw_queue() -> void:
-	_text(overlay, "A peek ahead", Vector2(100, 274), 43, INK, 520, HORIZONTAL_ALIGNMENT_CENTER, true)
-	_text(overlay, "The order is fixed. Plan at your own pace.", Vector2(100, 315), 18, MUTED, 520, HORIZONTAL_ALIGNMENT_CENTER)
+	_text(overlay,"Your next boxes",Vector2(100,274),45,INK,520,HORIZONTAL_ALIGNMENT_CENTER,true)
+	_text(overlay,"A little peek. A clever next move!",Vector2(100,315),21,MUTED,520,HORIZONTAL_ALIGNMENT_CENTER)
 	var boxes: Array = session.state.get("active_box_slots", [])
 	for i in range(2):
-		_draw_box(overlay, Rect2(120 + i * 249, 346, 231, 119), boxes[i] if i < boxes.size() else null)
-	_text(overlay, "COMING NEXT", Vector2(120, 510), 14, MUTED, -1, HORIZONTAL_ALIGNMENT_LEFT, false, true)
+		_draw_box(overlay,Rect2(120+i*249,354,231,119),boxes[i] if i<boxes.size() else null)
+	_text(overlay,"ON THEIR WAY",Vector2(120,517),18,GREEN,-1,HORIZONTAL_ALIGNMENT_LEFT,false,true)
 	var queue: Array = session.level.get("boxes_in_activation_order", [])
-	var cursor: int = int(session.state.get("next_queue_index", 2))
-	var remaining: int = queue.size() - cursor
+	var cursor: int = int(session.state.get("next_queue_index",2))
+	var remaining: int = queue.size()-cursor
 	if remaining <= 0:
-		_paragraph(overlay, "These are your final boxes. Every little piece has a place.", Vector2(150, 637), 420, 25, MUTED, 40, true)
-	for i in range(mini(10, remaining - queue_page * 10)):
-		var j: int = cursor + queue_page * 10 + i
-		var x: float = 120 + (i % 2) * 250
-		var y: float = 536 + (i / 2) * 72
-		_round(overlay, Rect2(x, y, 230, 58), PALE, 16)
+		_pip(overlay,Rect2(274,552,172,172))
+		_paragraph(overlay,"Last boxes! Every screw has a home.",Vector2(140,769),440,27,INK,38,true)
+	elif remaining <= 4:
+		_pip(overlay,Rect2(268,680,184,184))
+		_paragraph(overlay,"Fill a ready box to bring in the next one!",Vector2(131,902),458,24,INK,31,true)
+	for i in range(mini(10,remaining-queue_page*10)):
+		var j: int = cursor+queue_page*10+i
+		var x: float = 120+(i%2)*250
+		var y: float = 539+(i/2)*72
+		_round(overlay,Rect2(x,y+3,230,58),Color("c4aadf"),20)
+		_round(overlay,Rect2(x,y,230,58),Color("eee3fc"),20)
 		var color_id: String = str(queue[j].color_id)
-		Craft.symbol(overlay, Vector2(x + 34, y + 28), color_id, 12.0, Craft.color_for(color_id))
-		_text(overlay, "%d. %s" % [j - cursor + 1, color_id.capitalize()], Vector2(x + 60, y + 37), 19, INK)
+		Craft.screw(overlay,Vector2(x+34,y+28),color_id,20)
+		_text(overlay,"%d. %s" % [j-cursor+1,color_id.capitalize()],Vector2(x+64,y+38),22,INK,-1,HORIZONTAL_ALIGNMENT_LEFT,false,true)
 
 
 func _draw_won() -> void:
-	_text(overlay, "BEAUTIFULLY DONE", Vector2(100, 277), 16, GREEN, 520, HORIZONTAL_ALIGNMENT_CENTER, false, true)
-	_round(overlay, Rect2(223, 324, 274, 274), Color("e8ecdd"), 137)
-	_draw_keepsake(overlay, Vector2(360, 446), 1.13, str(session.level.get("family", "flower")), true)
-	for i in range(12):
-		var a: float = i * TAU / 12.0
-		overlay.draw_circle(Vector2(360, 461) + Vector2(cos(a), sin(a)) * 164, 3.0 if i % 2 == 0 else 2.0, GOLD if i % 3 == 0 else Color("9caf8b"))
-	_text(overlay, "A little masterpiece.", Vector2(92, 660), 45, INK, 536, HORIZONTAL_ALIGNMENT_CENTER, true)
-	_text(overlay, str(session.level.get("name", "Craft complete")), Vector2(100, 703), 23, MUTED, 520, HORIZONTAL_ALIGNMENT_CENTER)
-	_round(overlay, Rect2(233, 738, 254, 52), Color("f0e6cc"), 26)
-	_text(overlay, "+20 first-clear coins" if first_clear else "Reward already collected", Vector2(223, 772), 18, Color("977238"), 274, HORIZONTAL_ALIGNMENT_CENTER, false, true)
-	var group: int = int((int(session.level.get("index", 1)) - 1) / 5)
+	# Illustrated celebration, one reward ledger, one clear next action.
+	_round(overlay,Rect2(91,204,538,88),Color("d63388"),35)
+	_round(overlay,Rect2(91,197,538,88),PINK,35,Color("ff94c7"))
+	_text(overlay,"TOY-TASTIC!",Vector2(99,262),60,WHITE,522,HORIZONTAL_ALIGNMENT_CENTER,true)
+	for i in range(10):
+		var a: float = TAU*i/10.0
+		var from := Vector2(360,458)+Vector2.from_angle(a)*105
+		var to := Vector2(360,458)+Vector2.from_angle(a)*200
+		overlay.draw_line(from,to,Color(1,0.82,0.38,0.3),10,true)
+	_pip(overlay,Rect2(206,302,310,310),true)
+	_sticker(overlay,Vector2(528,545),str(session.level.get("family","flower")),51,AQUA)
+	_text(overlay,"Level %02d complete!" % int(session.level.get("index",1)),Vector2(84,662),40,INK,552,HORIZONTAL_ALIGNMENT_CENTER,true)
+	_text(overlay,"Another toybox treasure!",Vector2(100,700),23,MUTED,520,HORIZONTAL_ALIGNMENT_CENTER,false,true)
+	_round(overlay,Rect2(179,727,362,76),Color("e7a728"),28)
+	_round(overlay,Rect2(179,721,362,76),GOLD,28,Color("ffe9a4"))
+	Craft.icon(overlay,Vector2(220,758),"coin",25,INK)
+	_text(overlay,"+20 coins!" if first_clear else "Already collected",Vector2(252,770),30,INK,265,HORIZONTAL_ALIGNMENT_CENTER,true)
+	var group: int = int((int(session.level.get("index",1))-1)/5)
 	var earned: int = 0
 	for i in range(5):
-		if session.profile.get("completed_levels", []).has("campaign_%04d" % (group * 5 + i + 1)):
-			earned += 1
-	_text(overlay, "%d of 5 keepsakes in this chapter" % earned, Vector2(100, 825), 18, MUTED, 520, HORIZONTAL_ALIGNMENT_CENTER)
+		if session.profile.get("completed_levels",[]).has("campaign_%04d" % (group*5+i+1)): earned += 1
+	for i in range(5):
+		var center := Vector2(264+i*48,842)
+		overlay.draw_circle(center,15,AQUA if i<earned else PALE,true,-1,true)
+		if i<earned: Craft.icon(overlay,center,"check",10,INK)
+	_text(overlay,"%d / 5 toys in this collection" % earned,Vector2(100,893),23,MUTED,520,HORIZONTAL_ALIGNMENT_CENTER,false,true)
+
+
+func _texture(path: String) -> Texture2D:
+	if not texture_cache.has(path):
+		texture_cache[path] = load(path) if ResourceLoader.exists(path) else null
+	return texture_cache[path] as Texture2D
+
+
+func _pip(canvas: CanvasItem, rect: Rect2, celebrating: bool = false) -> void:
+	var path: String = "res://assets/illustrations/pip_victory.png" if celebrating else "res://assets/illustrations/pip.png"
+	var texture: Texture2D = _texture(path)
+	if texture == null:
+		texture = _texture("res://assets/illustrations/pip.png")
+	if texture != null:
+		canvas.draw_texture_rect(texture, rect, false)
+
+
+func _star(canvas: CanvasItem, center: Vector2, radius: float, color: Color, angle: float = 0.0) -> void:
+	var points := PackedVector2Array()
+	for i in range(10):
+		points.append(center + Vector2.from_angle(-PI*0.5 + angle + i*PI/5.0) * radius * (1.0 if i%2==0 else 0.47))
+	canvas.draw_colored_polygon(points,color)
+
+
+func _sticker(canvas: CanvasItem, center: Vector2, family: String, radius: float, color: Color) -> void:
+	canvas.draw_circle(center+Vector2(0,5),radius+4,Color("b093d2"),true,-1,true)
+	canvas.draw_circle(center,radius+4,WHITE,true,-1,true)
+	canvas.draw_circle(center,radius,color,true,-1,true)
+	canvas.draw_arc(center,radius-6,PI*1.13,PI*1.85,32,Color(1,1,1,0.45),4,true)
+	Craft.motif(canvas,center,family,radius*0.62,INK)
+
+func _draw_confetti() -> void:
+	if board.reduced_motion or celebration_time >= 2.4:
+		for i in range(10):
+			_star(overlay,Vector2(92+fmod(i*157,541),305+fmod(i*83,500)),6+float(i%3),[PINK,AQUA,GOLD,GREEN][i%4],float(i))
+		return
+	var t: float = celebration_time
+	for i in range(52):
+		var side: float = -1.0 if i%2==0 else 1.0
+		var initial := Vector2(360+side*90,390+float(i%4)*15)
+		var velocity := Vector2(side*(65+fmod(i*53,200)),-140-fmod(i*37,190))
+		var point: Vector2 = initial + velocity*t + Vector2(0,230*t*t)
+		var col: Color = [PINK,AQUA,GOLD,GREEN,Color("ff976b")][i%5]
+		col.a = clampf((2.4-t)*1.4,0,1)
+		if i%4==0:
+			_star(overlay,point,8,col,t*2+i)
+		else:
+			overlay.draw_set_transform(point,t*3+i)
+			overlay.draw_rect(Rect2(-3,-7,6,14),col)
+			overlay.draw_set_transform(Vector2.ZERO)

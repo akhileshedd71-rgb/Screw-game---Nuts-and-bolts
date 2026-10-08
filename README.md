@@ -1,6 +1,8 @@
 # Screwcraft
 
-A calm, original screw-sorting puzzle for portrait phones, built with **Godot 4.7.2 Standard / typed GDScript**. Remove colorful screws from illustrated wooden pieces, pack matching orders, and reveal a little workshop keepsake.
+A colorful screw-sorting adventure for portrait phones, built with **Godot 4.7.2 Standard / typed GDScript**. Join **Pip**, the toy-making fox, to pop glossy screws, pack matching toolboxes, and discover a world of playful treasures.
+
+The illustrated Toybox Workshop edition includes an original character and village, shiny layered puzzle pieces, a winding level trail, a collectible toy cabinet, a paint shop, cheerful sound effects, and animated celebrations. Pink, aqua, purple, and warm yellow carry through every screen; the gameplay surface stays quiet and readable.
 
 The finite campaign contains **1,000 distinct, stored levels**, each with geometry, a fixed order queue, and a winning replay verified through the actual gameplay reducer. These are generated and validated designs; they have not been individually human playtested.
 
@@ -8,7 +10,8 @@ The finite campaign contains **1,000 distinct, stored levels**, each with geomet
 
 Open `project.godot` in **Godot 4.7.2** and press **F5**. There are no third-party Godot plugins or online runtime dependencies.
 
-Prepared builds are in:
+The GitHub ZIP contains the complete editable source project and artwork. After
+running the export command below, playable builds are written to:
 
 - `builds/android/Screwcraft-debug.apk` — Android 7.0+ / API 24, ARM64 and x86_64, development-signed.
 - `builds/linux/Screwcraft.x86_64` — Linux desktop executable.
@@ -41,7 +44,7 @@ Python 3.11+, HTTPS access to the official Godot releases, and a writable tool d
 - Blueprint reveals the layered arrangement without changing it. The full fixed order queue is always inspectable.
 - A first clear earns one collection stamp and 20 cosmetic coins. Five clears complete a chapter; finishes cost 100 coins. Replays never duplicate rewards.
 
-Every puzzle is freely selectable from the shelf. There are no lives, countdowns, ads, purchases, accounts, or required network connection. Color symbols are always visible. Sound, music, vibration, and reduced motion are individually configurable.
+Every puzzle is freely selectable from the Toybox Trail. There are no lives, countdowns, ads, purchases, accounts, or required network connection. Color symbols are always visible. Sound, music, vibration, and reduced motion are individually configurable.
 
 Desktop shortcuts: **U** undo, **H** hint, **B** Blueprint, **Esc** settings/back. Touch and mouse controls share the same rules.
 
@@ -52,8 +55,9 @@ Desktop shortcuts: **U** undo, **H** hint, **B** Blueprint, **Esc** settings/bac
 | Immutable reducer, invariants, bounded solver | `scripts/core/puzzle_reducer.gd` |
 | Session, whole-move undo, verified hints | `scripts/session/game_session.gd` |
 | A/B checksummed saves and reward ledger | `scripts/services/save_service.gd` |
-| Portrait shell, navigation, settings, progression | `scripts/ui/app.gd` |
-| Original procedural wooden board and symbols | `scripts/ui/board_view.gd`, `scripts/ui/craft_draw.gd` |
+| Portrait shell, navigation, settings, progression | `scripts/ui/app.gd`, `scripts/ui/world_screens.gd` |
+| Original dimensional toy board, symbols and icons | `scripts/ui/board_view.gd`, `scripts/ui/craft_draw.gd` |
+| Original Pip character and toy village illustrations | `assets/illustrations/` |
 | Complete campaign and geometry catalogue | `content/levels/campaign.json`, `content/art_catalog.json` |
 | Reproducible level generation | `tools/generate_campaign.py` |
 | Original synthesized sound and bundled fonts | `assets/audio/`, `assets/fonts/` |
@@ -65,9 +69,11 @@ Logical moves commit and save before animation begins. The solver calls the same
 
 Run `./tools/run_tests.sh` for the golden fixture, every campaign witness, random alternative choices, persistence, UI lifecycle, audio, Blueprint geometry, and negative geometry controls. Reports are generated in `builds/reports/`. Optional rendered browser checks use `node tools/web_smoke.cjs` with Playwright, Chromium, and a locally served Web export.
 
-See [QA evidence](docs/QA.md), [level authoring](docs/LEVEL_AUTHORING.md), [design decisions](docs/DESIGN.md), [shared contracts](docs/CONTRACTS.md), and [asset provenance](assets/ASSET_MANIFEST.md).
+See [QA evidence](docs/QA.md), [visual redesign](docs/REDESIGN.md), [level authoring](docs/LEVEL_AUTHORING.md), [design decisions](docs/DESIGN.md), [shared contracts](docs/CONTRACTS.md), and [asset provenance](assets/ASSET_MANIFEST.md).
 
-Rendered captures: [first puzzle](docs/screenshots/gameplay.png), [level 1,000](docs/screenshots/level-1000.png), [workshop](docs/screenshots/workshop.png), and [360px touch viewport](docs/screenshots/phone.png).
+Rendered captures: [gameplay](docs/screenshots/gameplay.png), [level 1,000](docs/screenshots/level-1000.png), [illustrated workshop](docs/screenshots/workshop.png), [Toybox Trail](docs/screenshots/trail.png), [paint shop](docs/screenshots/paint-shop.png), [victory](docs/screenshots/victory.png), and [360px touch viewport](docs/screenshots/phone.png).
+
+<img src="docs/screenshots/workshop.png" width="270" alt="Pip welcomes you to the illustrated toy workshop"> <img src="docs/screenshots/gameplay.png" width="270" alt="Colorful toolboxes and glossy layered screw puzzle">
 
 Android APK integrity, desktop execution, and browser interactions are tested. **No physical Android phone was attached**, so hardware performance, haptics, cutouts, and Android suspension still need device testing. The catalogue needs human difficulty and enjoyment testing before a production release. The APK uses a development certificate; store publishing and release signing remain owner-controlled.
 
